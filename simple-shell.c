@@ -1,7 +1,7 @@
 // MC504 Simple-Shell
 // Alunos:
 //  Pablo Henrique Almeida Mendes RA:230977
-//  Luiz Felipe Corradini
+//  Luiz Felipe Corradini Rego Costa: RA:230613
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
