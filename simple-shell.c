@@ -2,6 +2,7 @@
 // Alunos:
 //  Pablo Henrique Almeida Mendes RA:230977
 //  Luiz Felipe Corradini Rego Costa: RA:230613
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +40,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        fprintf(stderr, "Usage: %s <directories>\n", argv[0]);
+        printf("Please insert directories\n");
         return 1;
     }
 
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
     printf("simple-shell$: ");
     if (fgets(command_line, sizeof(command_line), stdin) == NULL)
     {
-        perror("fgets failed");
+        printf("fgets failed");
         return 1;
     }
 
@@ -74,13 +75,13 @@ int main(int argc, char *argv[])
     {
         if (execv(command_path, args) == -1)
         {
-            perror("execv failed");
+            printf("execv failed");
             return 1;
         }
     }
     else
     {
-        fprintf(stderr, "Command not found: %s\n", args[0]);
+        printf("Please insert command\n");
         return 1;
     }
 
