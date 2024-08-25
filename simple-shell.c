@@ -10,6 +10,7 @@
 #define MAX_PATHS 1024
 #define MAX_COMMAND_LENGTH 1024
 
+// Função para dividir os diretorios da entrada
 void parse_directories(char *path, char **directories)
 {
     int i = 0;
@@ -19,7 +20,7 @@ void parse_directories(char *path, char **directories)
         directories[i++] = dir;
         dir = strtok(NULL, ":");
     }
-    directories[i] = NULL; // Null-terminate the array
+    directories[i] = NULL;
 }
 
 char *find_command(char **directories, char *command)
@@ -30,10 +31,10 @@ char *find_command(char **directories, char *command)
         snprintf(path, sizeof(path), "%s/%s", directories[i], command);
         if (access(path, X_OK) == 0)
         {
-            return path; // Command found
+            return path; // Comando achado!
         }
     }
-    return NULL; // Command not found
+    return NULL; // Comando não achado!
 }
 
 int main(int argc, char *argv[])
@@ -49,16 +50,17 @@ int main(int argc, char *argv[])
 
     char command_line[MAX_COMMAND_LENGTH];
     printf("simple-shell$: ");
+
+    // Recebe os comandos
     if (fgets(command_line, sizeof(command_line), stdin) == NULL)
     {
         printf("fgets failed");
         return 1;
     }
 
-    // Remove newline character
     command_line[strcspn(command_line, "\n")] = '\0';
 
-    // Separate command and arguments
+    // Separa comando e argumentos
     char *command = strtok(command_line, " ");
     char *args[MAX_PATHS];
     int i = 0;
@@ -69,7 +71,7 @@ int main(int argc, char *argv[])
     }
     args[i] = NULL;
 
-    // Find the command in the provided directories
+    // Procura o comando nas pastas dadas inicialmente e executa caso achado
     char *command_path = find_command(directories, args[0]);
     if (command_path != NULL)
     {
