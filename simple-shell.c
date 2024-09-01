@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     // Separando os diretórios
     char *directories[MAX_PATHS];
     parse_directories(argv[1], directories);
-
+    
     // Loop do terminal, para que só termine com o exit
     while(1){
         
@@ -76,12 +76,18 @@ int main(int argc, char *argv[])
         char *args[MAX_PATHS];
         int i = 0;
         
+        int isbackground = 0;
         // Itera pelos comandos passados, e coloca em "args"
         while (command != NULL)
         {
+            if(strcmp(command, "&") == 0){
+                isbackground = 1;
+                break;
+            } 
             args[i++] = command;
             command = strtok(NULL, " ");
         }
+        // if(isbackground) printf("Background!\n");
 
         // Seta o último args como null
         args[i] = NULL;
@@ -94,24 +100,24 @@ int main(int argc, char *argv[])
         //      Porém, só o filho será executado, e o pai passará para a próxima alteração do while TRUE
         if(command_path == NULL){ 
             if(!args[0]);
-            else if(strcmp(args[0], "exit") != 0) printf("Type a valid command\n");
-            else if(strcmp(args[0],"exit") == 0){
-                break;
-            }
+            else if(strcmp(args[0], "exit") != 0) printf("Comando não encontrado.\n");
+            else break;
         }
 
-        else{ // command path != NULL
+        else{
             int id = fork();
-            wait(NULL);
             
             if(id == 0){
+                // printf("Comand Path: %s\n", command_path);
             // Processo filho executa o processo, já que não é exit
-
                 if(execv(command_path, args) == -1){
                     printf("execv failed");
                     return 1;
                 }
-                break;
+            }
+            else{ // Processo Pai
+                if(!isbackground) wait(NULL);
+                // printf("Entrou no pai!\n");
             }
             
         }
