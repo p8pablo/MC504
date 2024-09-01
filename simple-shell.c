@@ -28,6 +28,7 @@ char *find_command(char **directories, char *command)
 // Função que itera pelos diretórios passados como parâmetro, procurando o comando desejado
 {
     static char path[MAX_COMMAND_LENGTH];
+    if(command == NULL) return NULL;
     for (int i = 0; directories[i] != NULL; i++)
     {
         snprintf(path, sizeof(path), "%s/%s", directories[i], command);
@@ -91,23 +92,29 @@ int main(int argc, char *argv[])
         // Se o comando não for exit (essa lógica tem que ser alterada)
         //      A ideia aqui é, caso seja != de exit, se cria o fork
         //      Porém, só o filho será executado, e o pai passará para a próxima alteração do while TRUE
-        if (strcmp(args[0],"exit") != 0)
-        {
-            int id = fork();
-            wait(NULL); // pai espera o filho acabar pra rodar
-            
-            if (execv(command_path, args) == -1)
-            {
-                printf("execv failed");
-                return 1;
+        if(command_path == NULL){ 
+            if(!args[0]);
+            else if(strcmp(args[0], "exit") != 0) printf("Type a valid command\n");
+            else if(strcmp(args[0],"exit") == 0){
+                break;
             }
         }
-        else
-        {
-            break;
-        
+
+        else{ // command path != NULL
+            int id = fork();
+            wait(NULL);
+            
+            if(id == 0){
+            // Processo filho executa o processo, já que não é exit
+
+                if(execv(command_path, args) == -1){
+                    printf("execv failed");
+                    return 1;
+                }
+                break;
+            }
+            
         }
-        exit(0);
         
     }
     
