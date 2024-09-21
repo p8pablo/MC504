@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/simple-shell",
-            "args": ["/bin:/usr/bin"],
+            "args": ["/usr:/usr/bin"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
