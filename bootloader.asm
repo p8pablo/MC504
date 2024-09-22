@@ -1,4 +1,7 @@
-; bootloader.asm - boot loader que printa "Hello, Boot!" 
+; MC504 bootloader.asm - boot loader que printa "Hello, Boot!" 
+; Alunos:
+;  Pablo Henrique Almeida Mendes RA:230977
+;  Luiz Felipe Corradini Rego Costa: RA:230613
 
     BITS 16                   
 
