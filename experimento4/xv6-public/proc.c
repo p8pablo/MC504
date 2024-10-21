@@ -357,54 +357,33 @@ void scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-
-  for (;;)
-  {
+  
+  for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      if (p->state != RUNNABLE)
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
         continue;
-
-      // Choose process based on weighted priority
-      int total_weight = 0;
-      struct proc *chosen_proc = 0;
-      for (struct proc *q = ptable.proc; q < &ptable.proc[NPROC]; q++)
-      {
-        if (q->state == RUNNABLE)
-        {
-          total_weight += q->priority;
-          if (rand() % total_weight < q->priority)
-          {
-            chosen_proc = q;
-          }
-        }
-      }
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      // If a process was chosen, switch to it
-      if (chosen_proc)
-      {
-        p = chosen_proc;
-        c->proc = p;
-        switchuvm(p);
-        p->state = RUNNING;
-        swtch(&(c->scheduler), p->context);
-        switchkvm();
-      }
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
     release(&ptable.lock);
+
   }
 }
 

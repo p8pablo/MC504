@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 
 use POSIX qw(strftime);
 

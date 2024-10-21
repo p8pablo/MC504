@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 open(SIG, $ARGV[0]) || die "open $ARGV[0]: $!";
 
 $n = sysread(SIG, $buf, 1000);
