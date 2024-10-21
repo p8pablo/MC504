@@ -157,6 +157,14 @@ _forktest: forktest.o $(ULIB)
 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _forktest forktest.o ulib.o usys.o
 	$(OBJDUMP) -S _forktest > forktest.asm
 
+# Add a rule to build run_experiment.o and link it to create the _run_experiment program
+run_experiment.o: run_experiment.c
+	$(CC) $(CFLAGS) -c run_experiment.c
+	
+_run_experiment: run_experiment.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _run_experiment run_experiment.o $(ULIB)
+	$(OBJDUMP) -S _run_experiment > run_experiment.asm
+
 mkfs: mkfs.c fs.h
 	gcc -Werror -Wall -o mkfs mkfs.c
 
@@ -250,12 +258,13 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 # check in that version.
 
 EXTRA=\
-	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+	mkfs.c ulib.c user.h cat.c echo.c .c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	run_experiment.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
+
 
 dist:
 	rm -rf dist
@@ -287,3 +296,4 @@ tar:
 	(cd /tmp; tar cf - xv6) | gzip >xv6-rev10.tar.gz  # the next one will be 10 (9/17)
 
 .PHONY: dist-test dist
+
