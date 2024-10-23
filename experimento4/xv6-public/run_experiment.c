@@ -67,10 +67,44 @@ struct Graph *generate_random_graph(int num_vertices)
     return graph;
 }
 
+// Minimum distance to be used for Dijkstra
+int minDistance(int dist[], int sptSet[], int num_vertices) {
+    int min = INF, min_index = -1;
+    for (int v = 0; v < num_vertices; v++) {
+        if (sptSet[v] == 0 && dist[v] <= min) {
+            min = dist[v];
+            min_index = v;
+        }
+    }
+    return min_index;
+}
+
 // Dijkstra
 void dijkstra(struct Graph *graph, int start_vertex)
 {
-    return;
+    int dist[MAX_VERTICES];
+
+    int num_vertices = graph->num_vertices;
+    int sptSet[MAX_VERTICES];
+
+    for (int i = 0; i < num_vertices; i++) {
+        dist[i] = INF;
+        sptSet[i] = 0;
+    }
+
+    dist[start_vertex] = 0;
+
+    for (int count = 0; count < num_vertices - 1; count++) {
+        int u = minDistance(dist, sptSet, num_vertices);
+        sptSet[u] = 1;
+
+        for (int v = 0; v < num_vertices; v++) {
+            if (!sptSet[v] && graph->adjacency_matrix[u][v] &&
+                dist[u] != INF && dist[u] + graph->adjacency_matrix[u][v] < dist[v]) {
+                dist[v] = dist[u] + graph->adjacency_matrix[u][v];
+            }
+        }
+    }
 }
 
 void cpu_bound_task()
@@ -82,8 +116,9 @@ void cpu_bound_task()
     struct Graph *graph = generate_random_graph(num_vertices);
     
     int start_vertex = 0;
+
     // Run Dijkstra's algorithm
-    dijkstra(graph, start_vertex); // TODO
+    dijkstra(graph, start_vertex);
 }
 
 void io_bound_task()
