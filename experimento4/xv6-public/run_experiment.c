@@ -19,9 +19,13 @@
 #define TOTAL_LINES 100
 #define SWAPS 50
 
+// Flags to help calculate i/o latency system calls
+int min_io_latency = INF;
+int max_io_latency = 0;
+int sum_latencies = 0;
+
 int rseed = 1;
 char lines[TOTAL_LINES][LINE_LENGTH];
-
 
 struct Graph
 {
@@ -276,25 +280,15 @@ void run_experiment(int cpu_count, int io_count)
             exit();
         }
     }
-    # define MAX_IO 20
-
-    // Flags to help calculate i/o latency system calls
-    int min_io_latency = INF;
-    int max_io_latency = 0;
-    int sum_latencies = 0;
-    int count_latencies = 0;
 
     for (int i = 0; i < io_count; i++)
     {
 
         int start_io_uptime = uptime();
-        // printf(1, "%d) %d - ", i, start_io_uptime);
 
         if (fork() == 0)
         {
-            
             io_bound_task();
-        
             exit();
         }
 
@@ -303,10 +297,7 @@ void run_experiment(int cpu_count, int io_count)
         int end_io_uptime = uptime();
 
         int diff = end_io_uptime - start_io_uptime;
-
-        // printf(1, "%d (%d)\n", end_io_uptime, diff);
         sum_latencies += diff;
-        count_latencies ++;
 
         if(diff > max_io_latency) max_io_latency = diff;
         if(diff < min_io_latency) min_io_latency = diff;
@@ -315,7 +306,7 @@ void run_experiment(int cpu_count, int io_count)
     }
 
     printf(1, "Latencia de I/O Normalizada:\n");
-    print_float(calculate_io_latency(sum_latencies, count_latencies, min_io_latency, max_io_latency));
+    print_float(calculate_io_latency(sum_latencies, io_count, min_io_latency, max_io_latency));
 
 
     // Wait for all processes to finish
