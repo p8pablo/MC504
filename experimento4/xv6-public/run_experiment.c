@@ -2,16 +2,20 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+// #include <time.h>
+// #include <fcntl.h>
+// #include <unistd.h>
 
 #define MAX_VERTICES 201
 #define INF 1e9 // Representing infinite distance
-#define LINE_LENGTH 100
+#define LINE_LENGTH 101
 #define MAX_LINES 100
 #define RAND_MAX_32 ((1U << 30) - 1)
+#define O_RDONLY  0
+#define O_WRONLY  1
+#define O_RDWR    2
+#define O_CREAT  0x200
+#define O_APPEND  0x400
 int rseed = 1;
 
 struct Graph
@@ -137,17 +141,25 @@ void generate_random_string(char *str, int length)
 // Function to write a random line to the file
 void write_random_line_to_file(const char *filename)
 {
-    FILE *file = fopen(filename, "a"); // Open file in append mode
-    if (file == NULL)
-    {
-        perror("Could not open file");
+    int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND);
+    if (fd < 0) {
+        printf(1, "Could not write on file");
         return;
     }
 
     char line[LINE_LENGTH];
-    generate_random_string(line, LINE_LENGTH); // Generate random string
-    fprintf(file, "%s\n", line);               // Write the string to the file
-    fclose(file);                              // Close the file
+
+    generate_random_string(line, 100);
+
+    // Append a newline character at the end
+    line[100] = '\n';
+
+    if (write(fd, line, LINE_LENGTH) != LINE_LENGTH) {
+        printf(1, "Could not write on file.");
+        return;
+    }
+
+    close(fd);
 }
 
 void cpu_bound_task()
@@ -175,10 +187,10 @@ void io_bound_task()
     }
 
     // Permute lines
-    permute_lines(filename); // TODO
+    // permute_lines(filename); // TODO
 
     // Delete file
-    unlink(filename);
+    // unlink(filename);
 }
 
 void run_experiment(int cpu_count, int io_count)
@@ -188,7 +200,7 @@ void run_experiment(int cpu_count, int io_count)
         if (fork() == 0)
         {
             cpu_bound_task();
-            exit(0);
+            exit();
         }
     }
 
@@ -197,7 +209,7 @@ void run_experiment(int cpu_count, int io_count)
         if (fork() == 0)
         {
             io_bound_task();
-            exit(0);
+            exit();
         }
     }
 
@@ -214,7 +226,7 @@ int main(int argc, char *argv[])
 {
     printf(1, "My first xv6 program learnt at GFG\n");
     run_experiment(1, 1);
-    exit(0);
+    exit();
 }
 
 // This code is contributed by sambhav228
