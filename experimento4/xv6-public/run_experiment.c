@@ -160,6 +160,7 @@ void write_random_line_to_file(const char *filename, int fd)
 
 }
 
+// Function to update file with 50 new permutations
 void permute_lines(const char *filename)
 {
  
@@ -202,6 +203,28 @@ void permute_lines(const char *filename)
 
     // Close the file descriptor
     close(fd);
+}
+
+void print_float(int x){
+    // Integer and fractional parts for display
+    int norm_factor = 1000;
+    int integer_part = x / norm_factor;
+    int fractional_part = x % norm_factor;
+
+    // Print results without formatted padding
+    printf(1, "%d.%d\n", integer_part, fractional_part);
+}
+
+int calculate_io_latency(int sum_latencies, int count_latencies, int min_io_latency, int max_io_latency){
+
+    int norm_factor = 1000;
+
+    int avg_latency_scaled = (sum_latencies * norm_factor) / (count_latencies);
+
+    int norm_io_latency = norm_factor - ((avg_latency_scaled - (min_io_latency * norm_factor)) / (max_io_latency - min_io_latency));
+
+    return norm_io_latency;
+    // printf(1, "sum: %d, min: %d, max: %d\n", sum_latencies, min_io_latency, max_io_latency);
 }
 
 void cpu_bound_task()
@@ -253,15 +276,47 @@ void run_experiment(int cpu_count, int io_count)
             exit();
         }
     }
+    # define MAX_IO 20
+
+    // Flags to help calculate i/o latency system calls
+    int min_io_latency = INF;
+    int max_io_latency = 0;
+    int sum_latencies = 0;
+    int count_latencies = 0;
 
     for (int i = 0; i < io_count; i++)
     {
+
+        int start_io_uptime = uptime();
+        // printf(1, "%d) %d - ", i, start_io_uptime);
+
         if (fork() == 0)
         {
+            
             io_bound_task();
+        
             exit();
         }
+
+        wait();
+
+        int end_io_uptime = uptime();
+
+        int diff = end_io_uptime - start_io_uptime;
+
+        // printf(1, "%d (%d)\n", end_io_uptime, diff);
+        sum_latencies += diff;
+        count_latencies ++;
+
+        if(diff > max_io_latency) max_io_latency = diff;
+        if(diff < min_io_latency) min_io_latency = diff;
+        
+        wait();
     }
+
+    printf(1, "Latencia de I/O Normalizada:\n");
+    print_float(calculate_io_latency(sum_latencies, count_latencies, min_io_latency, max_io_latency));
+
 
     // Wait for all processes to finish
     for (int i = 0; i < cpu_count + io_count; i++)
@@ -274,8 +329,8 @@ void run_experiment(int cpu_count, int io_count)
 
 int main(int argc, char *argv[])
 {
-    printf(1, "My first xv6 program learnt at GFG\n");
-    run_experiment(1, 1);
+    printf(1, "Comecando os Experimentos: \n");
+    run_experiment(1, 20);
     exit();
 }
 
