@@ -16,7 +16,12 @@
 #define O_RDWR    2
 #define O_CREAT  0x200
 #define O_APPEND  0x400
+#define TOTAL_LINES 100
+#define SWAPS 50
+
 int rseed = 1;
+char lines[TOTAL_LINES][LINE_LENGTH];
+
 
 struct Graph
 {
@@ -139,14 +144,8 @@ void generate_random_string(char *str, int length)
 }
 
 // Function to write a random line to the file
-void write_random_line_to_file(const char *filename)
+void write_random_line_to_file(const char *filename, int fd)
 {
-    int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND);
-    if (fd < 0) {
-        printf(1, "Could not write on file");
-        return;
-    }
-
     char line[LINE_LENGTH];
 
     generate_random_string(line, 100);
@@ -155,10 +154,53 @@ void write_random_line_to_file(const char *filename)
     line[100] = '\n';
 
     if (write(fd, line, LINE_LENGTH) != LINE_LENGTH) {
-        printf(1, "Could not write on file.");
+        printf(1, "Could not write on file.\n");
         return;
     }
 
+}
+
+void permute_lines(const char *filename)
+{
+ 
+    // Open the file for reading and writing
+    int fd = open(filename, O_RDWR | O_CREAT);
+    if(fd < 0){
+        printf(1, "Could not open file for permutation\n");
+        return;
+    }
+
+    // Read all lines into an array
+    for(int i = 0; i < TOTAL_LINES; i++) read(fd, lines[i], LINE_LENGTH);
+
+    // Perform 50 swaps
+    for(int i = 0; i < SWAPS; i++) {
+        int a = randomrange(0, 99);
+        int b = randomrange(0, 99);
+        
+        char temp[LINE_LENGTH];
+        for(int j = 0; j < LINE_LENGTH; j++) temp[j] = lines[a][j];
+        for(int j = 0; j < LINE_LENGTH; j++) lines[a][j] = lines[b][j];
+        for(int j = 0; j < LINE_LENGTH; j++) lines[b][j] = temp[j];
+    }
+
+    // Reopen the file to rewrite all changed lines
+    int fd_write = open(filename, O_WRONLY | O_CREAT);
+    if(fd_write < 0){
+        printf(1, "Error: Cannot open file for writing\n");
+        return;
+    }
+
+    // Rewriting all lines into the file
+    for(int i = 0; i < TOTAL_LINES; i++) {
+        if(write(fd_write, lines[i], LINE_LENGTH) != LINE_LENGTH){
+            printf(1, "Error: Failed to write line %d\n", i+1);
+            close(fd_write);
+            return;
+        }
+    }
+
+    // Close the file descriptor
     close(fd);
 }
 
@@ -180,17 +222,25 @@ void io_bound_task()
 {
     char filename[] = "testfile.txt";
 
+    int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND);
+    if (fd < 0) {
+        printf(1, "Could open file\n");
+        return;
+    }
+
     // Write 100 random lines to file
     for (int i = 0; i < 100; i++)
     {
-        write_random_line_to_file(filename); // TODO
+        write_random_line_to_file(filename, fd);
     }
 
-    // Permute lines
-    // permute_lines(filename); // TODO
+    close(fd);
+
+    // Permutating lines
+    permute_lines(filename);
 
     // Delete file
-    // unlink(filename);
+    unlink(filename);
 }
 
 void run_experiment(int cpu_count, int io_count)
