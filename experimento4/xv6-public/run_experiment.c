@@ -25,19 +25,36 @@ void print_float(int x){
     printf(1, "%d.%d\n", integer_part, fractional_part);
 }
 
-int calculate_io_latency(int sum_latencies, int count_latencies, int min_io_latency, int max_io_latency){
+int calculate_io_latency(int diff, int min_io_latency, int max_io_latency){
 
     int norm_factor = 1000;
 
-    int avg_latency_scaled = (sum_latencies * norm_factor) / (count_latencies);
+    int avg_latency_scaled = diff * norm_factor;
 
-    int norm_io_latency = norm_factor - ((avg_latency_scaled - (min_io_latency * norm_factor)) / (max_io_latency - min_io_latency));
-
-    return norm_io_latency;
+    int norm_io_latency;
+    if(max_io_latency != min_io_latency) norm_io_latency = norm_factor - ((avg_latency_scaled - (min_io_latency * norm_factor)) / (max_io_latency - min_io_latency));
+    else return 1; // handle division by zero
+    
     // printf(1, "sum: %d, min: %d, max: %d\n", sum_latencies, min_io_latency, max_io_latency);
+    return norm_io_latency;
+}
+
+int calculate_average_io_latency(int sum, int count, int min_io_latency, int max_io_latency){
+
+    int norm_factor = 1000;
+
+    int avg_latency_scaled = sum * norm_factor / count;
+
+    int norm_io_latency;
+    if(max_io_latency != min_io_latency) norm_io_latency = norm_factor - ((avg_latency_scaled - (min_io_latency * norm_factor)) / (max_io_latency - min_io_latency));
+    else return 1; // handle division by zero
+    
+    // printf(1, "sum: %d, min: %d, max: %d\n", sum_latencies, min_io_latency, max_io_latency);
+    return norm_io_latency;
 }
 
 int calculate_throughput(int max_throughput, int min_throughput, int current_throughput){
+    
     int normalized_throughput = 1;
     int norm_factor = 1000;
     if (max_throughput != min_throughput) {
@@ -46,13 +63,13 @@ int calculate_throughput(int max_throughput, int min_throughput, int current_thr
     return normalized_throughput;
 }
 
-
 void run_experiment(int cpu_count, int io_count)
 {
     printf(1, "=============== CPU ===============\n");
 
     int start_time = uptime();
     int current_throughput = 0;
+    int iterations_throughput = 0;
 
     // Executando o experimento de CPU
     for (int i = 0; i < cpu_count; i++)
@@ -68,23 +85,26 @@ void run_experiment(int cpu_count, int io_count)
         // Check if one second has passed (for throughput analysis)
         if (uptime() - start_time >= 100) { // 100 ticks are, approximately, 1 second in xv6
 
-            int current_throughput = completed_count;
+            iterations_throughput += 1;
+
+            current_throughput = completed_count;
             if (current_throughput > max_throughput) max_throughput = current_throughput;
             if (current_throughput < min_throughput) min_throughput = current_throughput;
 
             // Reset for the next interval
             completed_count = 0;
             start_time = uptime();
-        }
-    }
 
-    printf(1, "Vazao Normalizada:\n");
-    printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, current_throughput);
-    print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
+            printf(1, "\n%d Vazao Normalizada:\n", iterations_throughput);
+            // printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
+            print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
+        }
+        
+    }
 
 
     // Executando o experimento do I/O bound
-    printf(1, "=============== I/O bound ===============\n");
+    printf(1, "\n=============== I/O bound ===============\n");
 
     completed_count = 0;
     max_throughput = 0;
@@ -92,7 +112,7 @@ void run_experiment(int cpu_count, int io_count)
     start_time = uptime();
     current_throughput = 0;
     int sum_throughput = 0;
-    int iterations_throughput = 0;
+    iterations_throughput = 0;
 
     for (int i = 0; i < io_count; i++) {
         int start_io_uptime = uptime();
@@ -102,22 +122,21 @@ void run_experiment(int cpu_count, int io_count)
             io_bound_task();
             exit();
         }
+        wait();
 
         int end_io_uptime = uptime();
         int diff = end_io_uptime - start_io_uptime;
         sum_latencies += diff;
 
-        if (diff > max_io_latency) max_io_latency = diff;
-        if (diff < min_io_latency) min_io_latency = diff;
+        if (diff > max_io_latency || min_io_latency == 0) max_io_latency = diff;
+        if (diff < min_io_latency || max_io_latency == INF) min_io_latency = diff;
 
         // printf(1, "esperando outras acabarem\n");
-        wait();
         completed_count++;
 
         // Check if one second has passed (for throughput analysis)
         if (uptime() - start_time >= 100) { // 100 ticks are, approximately, 1 second in xv6
             // printf(1, "mais um tick\n");
-
 
             iterations_throughput += 1;
             int current_throughput = completed_count;
@@ -128,17 +147,30 @@ void run_experiment(int cpu_count, int io_count)
             // Reset for the next interval
             completed_count = 0;
             start_time = uptime();
+
+            printf(1, "\n%d Vazao Normalizada:\n", iterations_throughput);
+            // printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
+            print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
+            
         }
+        printf(1, "\n\nExperimento %d)\n", i);
+
+        // Print results
+        printf(1, "Latencia de I/O Normalizada:\n");
+        print_float(calculate_io_latency(diff, min_io_latency, max_io_latency));
+        printf(1, "diff: %d, max: %d, min: %d\n", diff, max_io_latency, min_io_latency);
+
+        // printf(1, "Vazao Normalizada:\n");
+        // print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
     }
 
-
     // Print results
-    printf(1, "Latencia de I/O Normalizada:\n");
-    print_float(calculate_io_latency(sum_latencies, io_count, min_io_latency, max_io_latency));
+    printf(1, "Latencia media de I/O Normalizada:\n");
+    print_float(calculate_average_io_latency(sum_latencies, io_count, min_io_latency, max_io_latency));
 
-    printf(1, "Vazao Normalizada:\n");
-    printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
-    print_float(calculate_throughput(max_throughput, min_throughput, sum_throughput/iterations_throughput));
+    // printf(1, "Vazao Normalizada:\n");
+    // // printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
+    // print_float(calculate_throughput(max_throughput, min_throughput, sum_throughput/iterations_throughput));
 
     // Wait for all processes to finish
     for (int i = 0; i < cpu_count + io_count; i++)
