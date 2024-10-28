@@ -158,12 +158,19 @@ _forktest: forktest.o $(ULIB)
 	$(OBJDUMP) -S _forktest > forktest.asm
 
 # Add a rule to build run_experiment.o and link it to create the _run_experiment program
-run_experiment.o: run_experiment.c
+run_experiment.o: run_experiment.c user.h
 	$(CC) $(CFLAGS) -c run_experiment.c
+
+graph.o: graph.c user.h
+	$(CC) $(CFLAGS) -c graph.c
+
+lines.o: lines.c user.h
+	$(CC) $(CFLAGS) -c lines.c
 	
-_run_experiment: run_experiment.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _run_experiment run_experiment.o $(ULIB)
+_run_experiment: run_experiment.o graph.o lines.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _run_experiment run_experiment.o graph.o lines.o $(ULIB)
 	$(OBJDUMP) -S _run_experiment > run_experiment.asm
+
 
 mkfs: mkfs.c fs.h
 	gcc -Werror -Wall -o mkfs mkfs.c
@@ -191,6 +198,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_run_experiment\
+
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -260,7 +268,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c .c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	run_experiment.c\
+	run_experiment.c grafo.c lines.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
