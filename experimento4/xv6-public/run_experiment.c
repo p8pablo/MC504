@@ -15,6 +15,11 @@ int completed_count = 0;
 int max_throughput = 0;
 int min_throughput = MAX_INT;
 
+// Flags to help calculate memory overhead
+int m_over_min = INF;
+int m_over_max = 0;
+
+
 int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
 int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (∑x_i^2)
 
@@ -27,6 +32,71 @@ void print_float(int x){
     // Print results without formatted padding
     printf(1, "%d.%d\n", integer_part, fractional_part);
 }
+
+// Função para calcular o overhead de gerenciamento de memória
+int calculate_memory_overhead(int t_access, int t_alloc, int t_free) {
+    return t_access + t_alloc + t_free;
+}
+
+// Função para calcular o overhead normalizado
+int calculate_normalized_overhead(int m_over, int m_over_min, int m_over_max) {
+    int norm_factor = 1000;
+    if (m_over_max != m_over_min) {
+        return norm_factor - ((m_over - m_over_min) * norm_factor) / (m_over_max - m_over_min);
+    } else {
+        return 1; // evita divisão por zero
+    }
+}
+// Função para alocação de memória
+int allocate_memory(int size) {
+    // Aloca 'size' bytes de memória
+    char *ptr = sbrk(size);
+    if (ptr == (char*) -1) {
+        // Falha na alocação
+        return -1;
+    }
+    return 0; // Sucesso
+}
+
+// Função para a desalocação de memória
+int deallocate_memory(int size) {
+    // Desaloca 'size' bytes de memória
+    char *ptr = sbrk(-size);
+    if (ptr == (char*) -1) {
+        // Falha na desalocação
+        return -1;
+    }
+    return 0; // Sucesso
+}
+// Função principal de calculo de overhead de memória
+void measure_memory_overhead(const char* label) {
+    int start_alloc = uptime();
+    if (allocate_memory(1024) == -1) { // Aloca 1024 bytes
+        printf(1, "Falha na alocação de memória\n");
+    }
+    int t_alloc = uptime() - start_alloc;
+
+    int start_free = uptime();
+    if (deallocate_memory(1024) == -1) { // Desaloca os mesmos 1024 bytes
+        printf(1, "Falha na desalocação de memória\n");
+    }
+    int t_free = uptime() - start_free;
+
+    // Calcula o overhead de memória
+    int m_over = calculate_memory_overhead(0, t_alloc, t_free);
+    
+    // Atualiza valores de m_over_min e m_over_max
+    if (m_over < m_over_min) m_over_min = m_over;
+    if (m_over > m_over_max) m_over_max = m_over;
+
+    // Calcula o overhead normalizado
+    int m_over_norm = calculate_normalized_overhead(m_over, m_over_min, m_over_max);
+
+    // Exibe os resultados
+    printf(1, "Overhead Normalizado de Memória (%s):\n", label);
+    print_float(m_over_norm);
+}
+
 
 int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_count) {
     if (process_count == 0) return 0; // Evitar divisão por zero
@@ -100,6 +170,7 @@ void run_experiment(int cpu_count, int io_count)
         if (fork() == 0)
         {
             cpu_bound_task();
+            measure_memory_overhead("CPU");
             exit();
         }
         wait();
@@ -151,6 +222,7 @@ void run_experiment(int cpu_count, int io_count)
         // printf(1, "chegou aq\n");
         if (fork() == 0) {
             io_bound_task();
+            measure_memory_overhead("I/O");
             exit();
         }
         wait();
