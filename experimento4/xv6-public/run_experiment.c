@@ -15,6 +15,9 @@ int completed_count = 0;
 int max_throughput = 0;
 int min_throughput = MAX_INT;
 
+int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
+int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (∑x_i^2)
+
 void print_float(int x){
     // Integer and fractional parts for display
     int norm_factor = 1000;
@@ -23,6 +26,26 @@ void print_float(int x){
 
     // Print results without formatted padding
     printf(1, "%d.%d\n", integer_part, fractional_part);
+}
+
+int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_count) {
+    if (process_count == 0) return 0; // Evitar divisão por zero
+    int norm_factor = 1000;
+
+    int numerator = (sum_exec_times * sum_exec_times) / process_count;
+    int denominator = sum_exec_times_squared;
+
+    if (denominator == 0) return 0; // Outra proteção contra divisão por zero
+    int j_cpu = (numerator * norm_factor) / denominator;
+    return j_cpu;
+}
+
+// Função para calcular J_cpu e exibir o resultado
+void display_j_cpu(int process_count) {
+    int j_cpu = calculate_j_cpu(sum_exec_times, sum_exec_times_squared, process_count);
+    printf(1, "\n");
+    printf(1, "Justica entre Processos (J_cpu):\n");
+    print_float(j_cpu);
 }
 
 int calculate_io_latency(int diff, int min_io_latency, int max_io_latency){
@@ -82,6 +105,11 @@ void run_experiment(int cpu_count, int io_count)
         wait();
         completed_count++;
 
+        // Adiciona o tempo de execução para cálculo de J_cpu
+        int exec_time = uptime() - start_time;
+        sum_exec_times += exec_time;
+        sum_exec_times_squared += exec_time * exec_time;
+
         // Check if one second has passed (for throughput analysis)
         if (uptime() - start_time >= 100) { // 100 ticks are, approximately, 1 second in xv6
 
@@ -101,6 +129,9 @@ void run_experiment(int cpu_count, int io_count)
         }
         
     }
+
+    // Exibir J_cpu após o experimento de CPU
+    display_j_cpu(cpu_count);
 
 
     // Executando o experimento do I/O bound
