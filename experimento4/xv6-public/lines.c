@@ -16,6 +16,8 @@
 
 char lines_file[TOTAL_LINES][LINE_LENGTH];
 
+int total_file_time = 0;
+
 // Function to generate a random string of characters
 void generate_random_string(char *str, int length)
 {
@@ -38,10 +40,13 @@ void write_random_line_to_file(const char *filename, int fd)
     // Append a newline character at the end
     line[100] = '\n';
 
+    int start = uptime();
     if (write(fd, line, LINE_LENGTH) != LINE_LENGTH) {
         printf(1, "Could not write on file.\n");
         return;
     }
+
+    total_file_time += uptime() - start;
 
 }
 
@@ -57,7 +62,9 @@ void permute_lines(const char *filename)
     }
 
     // Read all lines into an array
+    int start = uptime();
     for(int i = 0; i < TOTAL_LINES; i++) read(fd, lines_file[i], LINE_LENGTH);
+    total_file_time += uptime() - start;
 
     // Perform 50 swaps
     for(int i = 0; i < SWAPS; i++) {
@@ -90,14 +97,15 @@ void permute_lines(const char *filename)
     close(fd);
 }
 
-void io_bound_task()
+int io_bound_task()
 {
     char filename[] = "testfile.txt";
 
+    // printf(1, "chegou aq\n");
     int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND);
     if (fd < 0) {
-        printf(1, "Could open file\n");
-        return;
+        printf(1, "Could not open file\n");
+        return -1;
     }
 
     // Write 100 random lines to file
@@ -111,6 +119,10 @@ void io_bound_task()
     // Permutating lines
     permute_lines(filename);
 
+    int start = uptime();
     // Delete file
     unlink(filename);
+    total_file_time += uptime() - start;
+
+    return total_file_time;
 }
