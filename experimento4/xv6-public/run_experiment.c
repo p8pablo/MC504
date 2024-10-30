@@ -26,6 +26,8 @@ int rodada_atual = 1;
 int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
 int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (∑x_i^2)
 
+// Flags to help calculate file accessment time
+int sum_file_calc = 0;
 void print_float(int x){
     // Integer and fractional parts for display
     int norm_factor = 1000;
@@ -221,7 +223,8 @@ void run_experiment(int cpu_count, int io_count)
     }
 
     printf(1, "Vazao normalizada: \n");
-    print_float(sum_throughput * 1000 / iterations_throughput);
+    if (iterations_throughput == 0) printf(1, "0\n");
+    else print_float(sum_throughput / iterations_throughput);
 
     // Exibir J_cpu após o experimento de CPU
     display_j_cpu(cpu_count);
@@ -229,9 +232,6 @@ void run_experiment(int cpu_count, int io_count)
     // Exibindo a média dos overheads de memória
     printf(1, "\nOverhead de Gerenciamento de memoria: \n");
     print_float(sum_m_over / cpu_count);
-
-
-
 
     // Executando o experimento do I/O bound
     printf(1, "\n=============== I/O bound ===============\n");
@@ -245,15 +245,48 @@ void run_experiment(int cpu_count, int io_count)
     iterations_throughput = 0;
 
     for (int i = 0; i < io_count; i++) {
+
+        int fd[2]; // file descriptors
+   
+        if (pipe(fd) < 0) { // Pipe to obtain information that were previously exclusive to the child process
+            printf(1, "Criação do Pipe falhou!\n");
+            exit();
+        }
+
         int start_io_uptime = uptime();
 
         // printf(1, "chegou aq\n");
         if (fork() == 0) {
-            io_bound_task();
-            // measure_memory_overhead("I/O");
+                        // Close the read end of the pipe; child only writes
+            close(fd[0]);
+
+            // Perform the CPU-bound task
+            int current_m_over = io_bound_task();
+
+
+            // Write the result to the pipe
+            write(fd[1], &current_m_over, sizeof(current_m_over));
+
+            // Close the write end after writing
+            close(fd[1]);
             exit();
         }
+
+        // Processo Pai
+        close(fd[1]); // fechar write inutilizado
+
+        int child_result = 0;
+
+        if (read(fd[0], &child_result, sizeof(child_result)) < 0) {
+            printf(1, "Leitura do Pipe falhou\n");
+            exit();
+        }
+
+        close(fd[0]); // fechar o read após ler
+
         wait();
+
+        sum_file_calc += measure_memory_overhead(child_result);
 
         int end_io_uptime = uptime();
         int diff = end_io_uptime - start_io_uptime;
@@ -282,19 +315,17 @@ void run_experiment(int cpu_count, int io_count)
             sum_throughput += (calculate_throughput(max_throughput, min_throughput, current_throughput));
             
         }
-        printf(1, "\n\nExperimento %d)\n", i);
-
-        // Print results
-        printf(1, "Latencia de I/O Normalizada:\n");
-        print_float(calculate_io_latency(diff, min_io_latency, max_io_latency));
-        printf(1, "diff: %d, max: %d, min: %d\n", diff, max_io_latency, min_io_latency);
-
     }
 
     // Print results
-    printf(1, "Latencia media de I/O Normalizada:\n");
+    printf(1, "\nLatencia de I/O Normalizada:\n");
     print_float(calculate_average_io_latency(sum_latencies, io_count, min_io_latency, max_io_latency));
 
+    printf(1, "\nVazao normalizada: \n");
+    print_float(sum_throughput / iterations_throughput);
+
+    printf(1, "\nEficiencia do sistema de arquivos: \n");
+    print_float(sum_file_calc / io_count);
 
     // Wait for all processes to finish
     for (int i = 0; i < cpu_count + io_count; i++)
