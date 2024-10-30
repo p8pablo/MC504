@@ -41,5 +41,5 @@ int atoi(const char*);
 // custom made functions
 int random();
 int randomrange(int lo, int hi);
-void cpu_bound_task();
+int cpu_bound_task();
 void io_bound_task();

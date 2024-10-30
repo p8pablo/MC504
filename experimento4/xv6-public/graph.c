@@ -7,6 +7,7 @@
 
 int rseed = 1;
 #define RAND_MAX_32 ((1U << 30) - 1)
+int total_m_over_time = 0;
 
 struct Graph
 {
@@ -32,8 +33,15 @@ int randomrange(int lo, int hi)
 struct Graph *generate_random_graph(int num_vertices)
 {
 
+    // using uptime() to calculate memory overhead timings
+    int start_allocation_time = uptime();
+    
     // Allocating space
     struct Graph *graph = (struct Graph *)malloc(sizeof(struct Graph));
+    
+    // Calculating time to allocate
+    total_m_over_time += uptime() - start_allocation_time;
+
     graph->num_vertices = num_vertices;
 
     // Initialize adjacency matrix with INF (no direct connection)
@@ -115,7 +123,7 @@ void dijkstra(struct Graph *graph, int start_vertex)
     }
 }
 
-void cpu_bound_task()
+int cpu_bound_task()
 {
     for (int i = 0; i < 1000; i++){
         // Generate number of vertices
@@ -126,7 +134,14 @@ void cpu_bound_task()
 
         int start_vertex = 0;
 
+        // Calculating time to deallocate
+        int start_time_free = uptime();
+        free(graph);
+        total_m_over_time += uptime() - start_time_free;
+        
         // Run Dijkstra's algorithm
         dijkstra(graph, start_vertex);
     }
+
+    return total_m_over_time;
 }

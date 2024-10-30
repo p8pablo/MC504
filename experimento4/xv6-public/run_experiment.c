@@ -14,11 +14,14 @@ int sum_latencies = 0;
 int completed_count = 0;
 int max_throughput = 0;
 int min_throughput = MAX_INT;
+int sum_throughput = 0;
 
 // Flags to help calculate memory overhead
 int m_over_min = INF;
 int m_over_max = 0;
+int sum_m_over = 0;
 
+int rodada_atual = 1;
 
 int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
 int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (∑x_i^2)
@@ -47,6 +50,7 @@ int calculate_normalized_overhead(int m_over, int m_over_min, int m_over_max) {
         return 1; // evita divisão por zero
     }
 }
+
 // Função para alocação de memória
 int allocate_memory(int size) {
     // Aloca 'size' bytes de memória
@@ -68,22 +72,10 @@ int deallocate_memory(int size) {
     }
     return 0; // Sucesso
 }
+
 // Função principal de calculo de overhead de memória
-void measure_memory_overhead(const char* label) {
-    int start_alloc = uptime();
-    if (allocate_memory(1024) == -1) { // Aloca 1024 bytes
-        printf(1, "Falha na alocação de memória\n");
-    }
-    int t_alloc = uptime() - start_alloc;
-
-    int start_free = uptime();
-    if (deallocate_memory(1024) == -1) { // Desaloca os mesmos 1024 bytes
-        printf(1, "Falha na desalocação de memória\n");
-    }
-    int t_free = uptime() - start_free;
-
-    // Calcula o overhead de memória
-    int m_over = calculate_memory_overhead(0, t_alloc, t_free);
+int measure_memory_overhead(int m_over) {
+    
     
     // Atualiza valores de m_over_min e m_over_max
     if (m_over < m_over_min) m_over_min = m_over;
@@ -92,11 +84,8 @@ void measure_memory_overhead(const char* label) {
     // Calcula o overhead normalizado
     int m_over_norm = calculate_normalized_overhead(m_over, m_over_min, m_over_max);
 
-    // Exibe os resultados
-    printf(1, "Overhead Normalizado de Memória (%s):\n", label);
-    print_float(m_over_norm);
+    return m_over_norm;
 }
-
 
 int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_count) {
     if (process_count == 0) return 0; // Evitar divisão por zero
@@ -159,7 +148,7 @@ int calculate_throughput(int max_throughput, int min_throughput, int current_thr
 void run_experiment(int cpu_count, int io_count)
 {
     printf(1, "=============== CPU ===============\n");
-
+    
     int start_time = uptime();
     int current_throughput = 0;
     int iterations_throughput = 0;
@@ -167,13 +156,45 @@ void run_experiment(int cpu_count, int io_count)
     // Executando o experimento de CPU
     for (int i = 0; i < cpu_count; i++)
     {
-        if (fork() == 0)
-        {
-            cpu_bound_task();
-            measure_memory_overhead("CPU");
+        int fd[2]; // file descriptors
+   
+        if (pipe(fd) < 0) { // Pipe to obtain information that were previously exclusive to the child process
+            printf(1, "Criação do Pipe falhou!\n");
             exit();
         }
+
+        if (fork() == 0)
+        {
+            // Close the read end of the pipe; child only writes
+            close(fd[0]);
+
+            // Perform the CPU-bound task
+            int current_m_over = cpu_bound_task();
+
+            // Write the result to the pipe
+            write(fd[1], &current_m_over, sizeof(current_m_over));
+
+            // Close the write end after writing
+            close(fd[1]);
+            exit();
+        }
+
+        // Processo Pai
+        close(fd[1]); // fechar write inutilizado
+
+        int child_result = 0;
+
+        if (read(fd[0], &child_result, sizeof(child_result)) < 0) {
+            printf(1, "Leitura do Pipe falhou\n");
+            exit();
+        }
+
+        close(fd[0]); // fechar o read após ler
+
         wait();
+        
+        sum_m_over += measure_memory_overhead(child_result); // atualizando variavel global        
+        
         completed_count++;
 
         // Adiciona o tempo de execução para cálculo de J_cpu
@@ -190,19 +211,26 @@ void run_experiment(int cpu_count, int io_count)
             if (current_throughput > max_throughput) max_throughput = current_throughput;
             if (current_throughput < min_throughput) min_throughput = current_throughput;
 
-            // Reset for the next interval
+            // Reset f´or the next interval
             completed_count = 0;
             start_time = uptime();
 
-            printf(1, "\n%d Vazao Normalizada:\n", iterations_throughput);
-            // printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
-            print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
+            sum_throughput += calculate_throughput(max_throughput, min_throughput, current_throughput);
         }
         
     }
 
+    printf(1, "Vazao normalizada: \n");
+    print_float(sum_throughput * 1000 / iterations_throughput);
+
     // Exibir J_cpu após o experimento de CPU
     display_j_cpu(cpu_count);
+
+    // Exibindo a média dos overheads de memória
+    printf(1, "\nOverhead de Gerenciamento de memoria: \n");
+    print_float(sum_m_over / cpu_count);
+
+
 
 
     // Executando o experimento do I/O bound
@@ -213,7 +241,7 @@ void run_experiment(int cpu_count, int io_count)
     min_throughput = MAX_INT;
     start_time = uptime();
     current_throughput = 0;
-    int sum_throughput = 0;
+    sum_throughput = 0;
     iterations_throughput = 0;
 
     for (int i = 0; i < io_count; i++) {
@@ -222,7 +250,7 @@ void run_experiment(int cpu_count, int io_count)
         // printf(1, "chegou aq\n");
         if (fork() == 0) {
             io_bound_task();
-            measure_memory_overhead("I/O");
+            // measure_memory_overhead("I/O");
             exit();
         }
         wait();
@@ -251,9 +279,7 @@ void run_experiment(int cpu_count, int io_count)
             completed_count = 0;
             start_time = uptime();
 
-            printf(1, "\n%d Vazao Normalizada:\n", iterations_throughput);
-            // printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
-            print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
+            sum_throughput += (calculate_throughput(max_throughput, min_throughput, current_throughput));
             
         }
         printf(1, "\n\nExperimento %d)\n", i);
@@ -263,17 +289,12 @@ void run_experiment(int cpu_count, int io_count)
         print_float(calculate_io_latency(diff, min_io_latency, max_io_latency));
         printf(1, "diff: %d, max: %d, min: %d\n", diff, max_io_latency, min_io_latency);
 
-        // printf(1, "Vazao Normalizada:\n");
-        // print_float(calculate_throughput(max_throughput, min_throughput, current_throughput));
     }
 
     // Print results
     printf(1, "Latencia media de I/O Normalizada:\n");
     print_float(calculate_average_io_latency(sum_latencies, io_count, min_io_latency, max_io_latency));
 
-    // printf(1, "Vazao Normalizada:\n");
-    // // printf(1, "max: %d, min: %d, current: %d\n", max_throughput, min_throughput, sum_throughput/iterations_throughput);
-    // print_float(calculate_throughput(max_throughput, min_throughput, sum_throughput/iterations_throughput));
 
     // Wait for all processes to finish
     for (int i = 0; i < cpu_count + io_count; i++)
@@ -286,8 +307,13 @@ void run_experiment(int cpu_count, int io_count)
 
 int main(int argc, char *argv[])
 {
+    // aqui, talvez faça mais sentido passar o X como parametro
     printf(1, "Comecando os Experimentos: \n");
-    run_experiment(14, 20);
+
+    // colocar um for aqui dentro
+    // for i in range(rodada) # i sendo variavel global, para transmitir o tempo da rodada
+    int numero_rodadas = 1; // trocar para 30
+    for (int rodada = 0; rodada < numero_rodadas; rodada++) run_experiment(10, 10);
     exit();
 }
 
