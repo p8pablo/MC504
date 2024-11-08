@@ -6,10 +6,6 @@
 #define INF 1e9 // Representing infinite distance
 #define MAX_INT 2147483647
 
-// Flags to help calculate i/o latency system calls
-int min_io_latency = INF;
-int max_io_latency = 0;
-int sum_latencies = 0;
 
 int completed_count = 0;
 int max_throughput = 0;
@@ -109,33 +105,6 @@ void display_j_cpu(int process_count) {
     print_float(j_cpu);
 }
 
-int calculate_io_latency(int diff, int min_io_latency, int max_io_latency){
-
-    int norm_factor = 1000;
-
-    int avg_latency_scaled = diff * norm_factor;
-
-    int norm_io_latency;
-    if(max_io_latency != min_io_latency) norm_io_latency = norm_factor - ((avg_latency_scaled - (min_io_latency * norm_factor)) / (max_io_latency - min_io_latency));
-    else return 1; // handle division by zero
-    
-    // printf(1, "sum: %d, min: %d, max: %d\n", sum_latencies, min_io_latency, max_io_latency);
-    return norm_io_latency;
-}
-
-int calculate_average_io_latency(int sum, int count, int min_io_latency, int max_io_latency){
-
-    int norm_factor = 1000;
-
-    int avg_latency_scaled = sum * norm_factor / count;
-
-    int norm_io_latency;
-    if(max_io_latency != min_io_latency) norm_io_latency = norm_factor - ((avg_latency_scaled - (min_io_latency * norm_factor)) / (max_io_latency - min_io_latency));
-    else return 1; // handle division by zero
-    
-    // printf(1, "sum: %d, min: %d, max: %d\n", sum_latencies, min_io_latency, max_io_latency);
-    return norm_io_latency;
-}
 
 int calculate_throughput(int max_throughput, int min_throughput, int current_throughput){
     
@@ -253,7 +222,6 @@ void run_experiment(int cpu_count, int io_count)
             exit();
         }
 
-        int start_io_uptime = uptime();
 
         // printf(1, "chegou aq\n");
         if (fork() == 0) {
@@ -288,12 +256,6 @@ void run_experiment(int cpu_count, int io_count)
 
         sum_file_calc += measure_memory_overhead(child_result);
 
-        int end_io_uptime = uptime();
-        int diff = end_io_uptime - start_io_uptime;
-        sum_latencies += diff;
-
-        if (diff > max_io_latency || min_io_latency == 0) max_io_latency = diff;
-        if (diff < min_io_latency || max_io_latency == INF) min_io_latency = diff;
 
         // printf(1, "esperando outras acabarem\n");
         completed_count++;
@@ -318,9 +280,6 @@ void run_experiment(int cpu_count, int io_count)
     }
 
     // Print results
-    printf(1, "\nLatencia de I/O Normalizada:\n");
-    print_float(calculate_average_io_latency(sum_latencies, io_count, min_io_latency, max_io_latency));
-
     printf(1, "\nVazao normalizada: \n");
     print_float(sum_throughput / iterations_throughput);
 
@@ -348,4 +307,3 @@ int main(int argc, char *argv[])
     exit();
 }
 
-// This code is contributed by sambhav228
