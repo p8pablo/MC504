@@ -6,24 +6,32 @@
 #define INF 1e9 // Representing infinite distance
 #define MAX_INT 2147483647
 
+int rodada = 0;
 
+// VAZÃO
 int completed_count = 0;
 int max_throughput = 0;
 int min_throughput = MAX_INT;
 int sum_throughput = 0;
 
-// Flags to help calculate memory overhead
-int m_over_min = INF;
-int m_over_max = 0;
-int sum_m_over = 0;
+// // Flags to help calculate memory overhead
+// int m_over_min = INF;
+// int m_over_max = 0;
+// int sum_m_over = 0;
 
-int rodada_atual = 1;
 
+// EFICIÊNCIA DO SISTEMA DE ARQUIVOS
+int sum_file_time = 0;
+int min_file_time = MAX_INT;
+int max_file_time = 0;
+
+
+// JUSTIÇA ENTRE PROCESSOS
 int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
 int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (∑x_i^2)
 
-// Flags to help calculate file accessment time
-int sum_file_calc = 0;
+// // Flags to help calculate file accessment time
+// int sum_file_calc = 0;
 void print_float(int x){
     // Integer and fractional parts for display
     int norm_factor = 1000;
@@ -34,56 +42,55 @@ void print_float(int x){
     printf(1, "%d.%d\n", integer_part, fractional_part);
 }
 
-// Função para calcular o overhead de gerenciamento de memória
-int calculate_memory_overhead(int t_access, int t_alloc, int t_free) {
-    return t_access + t_alloc + t_free;
-}
+// // Função para calcular o overhead de gerenciamento de memória
+// int calculate_memory_overhead(int t_access, int t_alloc, int t_free) {
+//     return t_access + t_alloc + t_free;
+// }
 
-// Função para calcular o overhead normalizado
-int calculate_normalized_overhead(int m_over, int m_over_min, int m_over_max) {
-    int norm_factor = 1000;
-    if (m_over_max != m_over_min) {
-        return norm_factor - ((m_over - m_over_min) * norm_factor) / (m_over_max - m_over_min);
-    } else {
-        return 1; // evita divisão por zero
-    }
-}
+// // Função para calcular o overhead normalizado
+// int calculate_normalized_overhead(int m_over, int m_over_min, int m_over_max) {
+//     int norm_factor = 1000;
+//     if (m_over_max != m_over_min) {
+//         return norm_factor - ((m_over - m_over_min) * norm_factor) / (m_over_max - m_over_min);
+//     } else {
+//         return 1; // evita divisão por zero
+//     }
+// }
 
-// Função para alocação de memória
-int allocate_memory(int size) {
-    // Aloca 'size' bytes de memória
-    char *ptr = sbrk(size);
-    if (ptr == (char*) -1) {
-        // Falha na alocação
-        return -1;
-    }
-    return 0; // Sucesso
-}
+// // Função para alocação de memória
+// int allocate_memory(int size) {
+//     // Aloca 'size' bytes de memória
+//     char *ptr = sbrk(size);
+//     if (ptr == (char*) -1) {
+//         // Falha na alocação
+//         return -1;
+//     }
+//     return 0; // Sucesso
+// }
 
-// Função para a desalocação de memória
-int deallocate_memory(int size) {
-    // Desaloca 'size' bytes de memória
-    char *ptr = sbrk(-size);
-    if (ptr == (char*) -1) {
-        // Falha na desalocação
-        return -1;
-    }
-    return 0; // Sucesso
-}
+// // Função para a desalocação de memória
+// int deallocate_memory(int size) {
+//     // Desaloca 'size' bytes de memória
+//     char *ptr = sbrk(-size);
+//     if (ptr == (char*) -1) {
+//         // Falha na desalocação
+//         return -1;
+//     }
+//     return 0; // Sucesso
+// }
 
-// Função principal de calculo de overhead de memória
-int measure_memory_overhead(int m_over) {
+// // Função principal de calculo de overhead de memória
+// int measure_memory_overhead(int m_over) {
     
-    
-    // Atualiza valores de m_over_min e m_over_max
-    if (m_over < m_over_min) m_over_min = m_over;
-    if (m_over > m_over_max) m_over_max = m_over;
+//     // Atualiza valores de m_over_min e m_over_max
+//     if (m_over < m_over_min) m_over_min = m_over;
+//     if (m_over > m_over_max) m_over_max = m_over;
 
-    // Calcula o overhead normalizado
-    int m_over_norm = calculate_normalized_overhead(m_over, m_over_min, m_over_max);
+//     // Calcula o overhead normalizado
+//     int m_over_norm = calculate_normalized_overhead(m_over, m_over_min, m_over_max);
 
-    return m_over_norm;
-}
+//     return m_over_norm;
+// }
 
 int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_count) {
     if (process_count == 0) return 0; // Evitar divisão por zero
@@ -97,17 +104,10 @@ int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_
     return j_cpu;
 }
 
-// Função para calcular J_cpu e exibir o resultado
-void display_j_cpu(int process_count) {
-    int j_cpu = calculate_j_cpu(sum_exec_times, sum_exec_times_squared, process_count);
-    printf(1, "\n");
-    printf(1, "Justica entre Processos (J_cpu):\n");
-    print_float(j_cpu);
-}
 
+int calculate_throughput(int max_throughput, int min_throughput, int sum_throughput, int num_execs){
 
-int calculate_throughput(int max_throughput, int min_throughput, int current_throughput){
-    
+    int current_throughput = sum_throughput / num_execs;   // Esperança da vazão
     int normalized_throughput = 1;
     int norm_factor = 1000;
     if (max_throughput != min_throughput) {
@@ -116,181 +116,150 @@ int calculate_throughput(int max_throughput, int min_throughput, int current_thr
     return normalized_throughput;
 }
 
+int max(int a, int b){
+    if (a > b) return a;
+    else return b;
+}
+
 void run_experiment(int cpu_count, int io_count)
 {
-    printf(1, "=============== CPU ===============\n");
+    printf(1, "=============== RODADA %d ===============\n", rodada);
     
-    int start_time = uptime();
-    int current_throughput = 0;
+    // VAZÃO
+    int start_time_throughput = uptime();
     int iterations_throughput = 0;
 
-    // Executando o experimento de CPU
-    for (int i = 0; i < cpu_count; i++)
-    {
-        int fd[2]; // file descriptors
-   
-        if (pipe(fd) < 0) { // Pipe to obtain information that were previously exclusive to the child process
-            printf(1, "Criação do Pipe falhou!\n");
-            exit();
+    // JUSTIÇA ENTRE PROCESSOS
+    int start_time_justica = uptime();
+
+
+    // SALVAR TEMPOS TOTAIS (EFICIÊNCIA DE ARQUIVOS)
+    // int files_result = 0;
+
+    // INÍCIO DA EXECUÇÃO
+    for(int i = 0; i < max(cpu_count, io_count); i++){
+
+        // ITERAÇÃO CPU
+        if(i < cpu_count){ // Ainda está no número de acessos da CPU
+
+            // int fd_memory[2];
+            // if (pipe(fd_memory) < 0) {
+            //     printf(1, "Criação do Primeiro Pipe falhou!\n");
+            //     exit();
+            // }
+
+            if (fork() == 0){
+                
+                // close(fd_memory[0]);
+
+                int total_cpu_time = cpu_bound_task();
+                total_cpu_time ++;
+
+                // write(fd_memory[1], &total_cpu_time, sizeof(total_cpu_time));
+                // close(fd_memory[1]);
+                exit();
+            }
+            // close(fd_memory[1]);
+
+            completed_count ++; // Para a vazão
+
         }
 
-        if (fork() == 0)
-        {
-            // Close the read end of the pipe; child only writes
-            close(fd[0]);
+        // ITERAÇÃO I/O
+        if(i < io_count){
 
-            // Perform the CPU-bound task
-            int current_m_over = cpu_bound_task();
+            // int fd_files[2];
+            // if (pipe(fd_files) < 0) {
+                // printf(1, "Criação do Segundo Pipe falhou!\n");
+                // exit();
+            // }
 
-            // Write the result to the pipe
-            write(fd[1], &current_m_over, sizeof(current_m_over));
+            if (fork() == 0){
+                
+                // close(fd_files[0]);
 
-            // Close the write end after writing
-            close(fd[1]);
-            exit();
+                int total_io_time = io_bound_task();
+                total_io_time ++;
+                
+                // write(fd_files[1], &total_io_time, sizeof(total_io_time));
+                // close(fd_files[1]);
+                exit();
+            }
+
+            // close(fd_files[1]);
+
+            // Read I/O time
+            // int files_result;
+            // if (read(fd_files[0], &files_result, sizeof(files_result)) < 0) {
+                // printf(1, "Leitura do Pipe de Arquivos falhou\n");
+                // exit();
+            // }
+            // close(fd_files[0]); // Close read end after reading
+
+            completed_count ++ ;// Para a vazão
         }
 
-        // Processo Pai
-        close(fd[1]); // fechar write inutilizado
+        // VAZÃO
+        if (uptime() - start_time_throughput >= 20) {
 
-        int child_result = 0;
+            iterations_throughput += 1;
 
-        if (read(fd[0], &child_result, sizeof(child_result)) < 0) {
-            printf(1, "Leitura do Pipe falhou\n");
-            exit();
+            int current_throughput = completed_count;
+            if (current_throughput > max_throughput) max_throughput = current_throughput;
+            if (current_throughput < min_throughput) min_throughput = current_throughput;
+
+            sum_throughput += completed_count;
+
+            completed_count = 0;
+            start_time_throughput = uptime();
+
         }
 
-        close(fd[0]); // fechar o read após ler
+        // JUSTIÇA ENTRE PROCESSOS
+        int exec_time = uptime() - start_time_justica;
 
-        wait();
-        
-        sum_m_over += measure_memory_overhead(child_result); // atualizando variavel global        
-        
-        completed_count++;
-
-        // Adiciona o tempo de execução para cálculo de J_cpu
-        int exec_time = uptime() - start_time;
         sum_exec_times += exec_time;
         sum_exec_times_squared += exec_time * exec_time;
 
-        // Check if one second has passed (for throughput analysis)
-        if (uptime() - start_time >= 100) { // 100 ticks are, approximately, 1 second in xv6
 
-            iterations_throughput += 1;
+        // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
+        // int current_total_time = files_result;
+        // sum_file_time += current_total_time;
+        // if (current_total_time > max_file_time) max_file_time = current_total_time;
+        // if (current_total_time < min_file_time) min_file_time = current_total_time;
 
-            current_throughput = completed_count;
-            if (current_throughput > max_throughput) max_throughput = current_throughput;
-            if (current_throughput < min_throughput) min_throughput = current_throughput;
-
-            // Reset f´or the next interval
-            completed_count = 0;
-            start_time = uptime();
-
-            sum_throughput += calculate_throughput(max_throughput, min_throughput, current_throughput);
-        }
-        
     }
 
-    printf(1, "Vazao normalizada: \n");
-    if (iterations_throughput == 0) printf(1, "0\n");
-    else print_float(sum_throughput / iterations_throughput);
+    // // FECHANDO BUFFERS UTILIZADO PARA OBTER TEMPOS
+    // close(fd_memory[0]);
+    // close(fd_memory[1]);
+    // close(fd_files[0]);
+    // close(fd_files[1]);
 
-    // Exibir J_cpu após o experimento de CPU
-    display_j_cpu(cpu_count);
-
-    // Exibindo a média dos overheads de memória
-    printf(1, "\nOverhead de Gerenciamento de memoria: \n");
-    print_float(sum_m_over / cpu_count);
-
-    // Executando o experimento do I/O bound
-    printf(1, "\n=============== I/O bound ===============\n");
-
-    completed_count = 0;
-    max_throughput = 0;
-    min_throughput = MAX_INT;
-    start_time = uptime();
-    current_throughput = 0;
-    sum_throughput = 0;
-    iterations_throughput = 0;
-
-    for (int i = 0; i < io_count; i++) {
-
-        int fd[2]; // file descriptors
-   
-        if (pipe(fd) < 0) { // Pipe to obtain information that were previously exclusive to the child process
-            printf(1, "Criação do Pipe falhou!\n");
-            exit();
-        }
-
-
-        // printf(1, "chegou aq\n");
-        if (fork() == 0) {
-                        // Close the read end of the pipe; child only writes
-            close(fd[0]);
-
-            // Perform the CPU-bound task
-            int current_m_over = io_bound_task();
-
-
-            // Write the result to the pipe
-            write(fd[1], &current_m_over, sizeof(current_m_over));
-
-            // Close the write end after writing
-            close(fd[1]);
-            exit();
-        }
-
-        // Processo Pai
-        close(fd[1]); // fechar write inutilizado
-
-        int child_result = 0;
-
-        if (read(fd[0], &child_result, sizeof(child_result)) < 0) {
-            printf(1, "Leitura do Pipe falhou\n");
-            exit();
-        }
-
-        close(fd[0]); // fechar o read após ler
-
-        wait();
-
-        sum_file_calc += measure_memory_overhead(child_result);
-
-
-        // printf(1, "esperando outras acabarem\n");
-        completed_count++;
-
-        // Check if one second has passed (for throughput analysis)
-        if (uptime() - start_time >= 100) { // 100 ticks are, approximately, 1 second in xv6
-            // printf(1, "mais um tick\n");
-
-            iterations_throughput += 1;
-            int current_throughput = completed_count;
-            sum_throughput += completed_count;
-            if (current_throughput > max_throughput) max_throughput = current_throughput;
-            if (current_throughput < min_throughput) min_throughput = current_throughput;
-
-            // Reset for the next interval
-            completed_count = 0;
-            start_time = uptime();
-
-            sum_throughput += (calculate_throughput(max_throughput, min_throughput, current_throughput));
-            
-        }
-    }
-
-    // Print results
-    printf(1, "\nVazao normalizada: \n");
-    print_float(sum_throughput / iterations_throughput);
-
-    printf(1, "\nEficiencia do sistema de arquivos: \n");
-    print_float(sum_file_calc / io_count);
-
-    // Wait for all processes to finish
+    // Esperar para todos os processos terminarem
     for (int i = 0; i < cpu_count + io_count; i++)
     {
         wait();
     }
+
+    // VAZAO
+    printf(1, "VAZAO: ");
+    int final_throughput = calculate_throughput(max_throughput, min_throughput, sum_throughput, iterations_throughput);
+    print_float(final_throughput);
+    printf(1, "\n");
+    
+    // JUSTIÇA ENTRE PROCESSOS
+    printf(1, "JUSTICA ENTRE PROCESSOS: ");
+    int final_justice = calculate_j_cpu(sum_exec_times, sum_exec_times_squared, cpu_count + io_count);
+    print_float(final_justice);
+    printf(1, "\n");
+
+    // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
+    // printf(1, "EFICIENCIA DO SISTEMA DE ARQUIVOS: ");
+    // int final_efficience = calculate_throughput(max_file_time, min_file_time, sum_file_time, io_count);
+    // print_float(final_efficience);
+    // printf(1, "\n");
+
 }
 
 // passing command line arguments
@@ -303,7 +272,7 @@ int main(int argc, char *argv[])
     // colocar um for aqui dentro
     // for i in range(rodada) # i sendo variavel global, para transmitir o tempo da rodada
     int numero_rodadas = 1; // trocar para 30
-    for (int rodada = 0; rodada < numero_rodadas; rodada++) run_experiment(10, 10);
+    for (rodada = 0; rodada < numero_rodadas; rodada++) run_experiment(30, 30);
     exit();
 }
 
