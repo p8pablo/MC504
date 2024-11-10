@@ -1,15 +1,17 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
+#include "fcntl.h"
 
 #define LINE_LENGTH 101
 #define MAX_LINES 100
 #define RAND_MAX_32 ((1U << 30) - 1)
-#define O_RDONLY  0
-#define O_WRONLY  1
-#define O_RDWR    2
+// #define O_RDONLY  0
+// #define O_WRONLY  1
+// #define O_RDWR    2
 #define O_CREAT  0x200
 #define O_APPEND  0x400
+#define O_EXCL 2048
 #define TOTAL_LINES 100
 #define SWAPS 50
 #define MAX_INT 2147483647
@@ -31,7 +33,7 @@ void generate_random_string(char *str, int length)
 }
 
 // Function to write a random line to the file
-void write_random_line_to_file(const char *filename, int fd)
+void write_random_line_to_file( char *filename, int fd)
 {
     char line[LINE_LENGTH];
 
@@ -50,8 +52,27 @@ void write_random_line_to_file(const char *filename, int fd)
 
 }
 
+// Strlen implementation
+int strlen_custom(char *s) {
+    int len = 0;
+    while (s[len] != '\0') {
+        len++;
+    }
+    return len;
+}
+
+// strcpy implementation
+void strcpy_custom(char *dest, char *src, int dest_pos) {
+    int i = 0;
+    while (src[i] != '\0' && (dest_pos + i) < 255) { // Ensure buffer limit
+        dest[dest_pos + i] = src[i];
+        i++;
+    }
+    dest[dest_pos + i] = '\0'; // Null-terminate
+}
+
 // Function to update file with 50 new permutations
-void permute_lines(const char *filename)
+void permute_lines(char *filename)
 {
  
     // Open the file for reading and writing
@@ -76,11 +97,40 @@ void permute_lines(const char *filename)
         for(int j = 0; j < LINE_LENGTH; j++) lines_file[a][j] = lines_file[b][j];
         for(int j = 0; j < LINE_LENGTH; j++) lines_file[b][j] = temp[j];
     }
+    
+    // Define the lock file name
+    char lock_filename[256];
+
+    // Copy the original filename to lock_filename
+    strcpy_custom(lock_filename, filename, 0);
+
+    // Append the ".lock" suffix
+    strcpy_custom(lock_filename, ".lock", strlen_custom(lock_filename));
+
+    int fd_lock;
+
+    int max_retries = 100;
+    int retries = 0;
+    printf(1, "pre-loop\n");
+    while ((fd_lock = open(lock_filename, O_WRONLY | O_CREATE | O_EXCL)) < 0) {
+        sleep(2);
+        retries++;
+        printf(1, "%d esimo loop com fd_lock: %d\n", retries, fd_lock);
+        if (retries >= max_retries) {
+            printf(1, "Error: Timeout while waiting for the lock. Attempting to remove stale lock.\n");
+            unlink(lock_filename);
+            retries = 0; // Reset retries and attempt to acquire the lock again
+        }
+    }
 
     // Reopen the file to rewrite all changed lines
-    int fd_write = open(filename, O_WRONLY | O_CREAT);
+    int fd_write = open(filename, O_WRONLY | O_CREATE);
+        
     if(fd_write < 0){
         printf(1, "Error: Cannot open file for writing\n");
+        // Release the lock before returning
+        close(fd_lock);                // Close the lock file descriptor
+        unlink(lock_filename);         // Remove the lock file
         return;
     }
 
@@ -93,13 +143,62 @@ void permute_lines(const char *filename)
         }
     }
 
+    unlink(lock_filename);
+    close(fd_lock);
     // Close the file descriptor
     close(fd);
 }
 
-int io_bound_task()
+
+// Simple itoa function for numbers between 0 and 30
+char* my_itoa(int value, char *str) {
+    if (value < 0 || value > 30) {
+        str[0] = '0';
+        str[1] = '\0';
+        return str;
+    }
+    if (value < 10) {
+        str[0] = '0' + value;
+        str[1] = '\0';
+    } else {
+        str[0] = '0' + (value / 10);
+        str[1] = '0' + (value % 10);
+        str[2] = '\0';
+    }
+    return str;
+}
+
+char* my_strcat(char *dest, const char *src) {
+    // Move the dest pointer to the end of the current string
+    while (*dest) {
+        dest++;
+    }
+    
+    // Copy characters from src to dest
+    while (*src) {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    
+    // Null-terminate the concatenated string
+    *dest = '\0';
+    
+    return dest;
+}
+
+int io_bound_task(int rodada)
 {
-    char filename[] = "testfile.txt";
+
+    char *rodada_str = {'\0'};
+    rodada_str = my_itoa(rodada, rodada_str);
+
+    char filename[] = "testfile";
+    my_strcat(filename, rodada_str);
+    char end[] = ".txt";
+    my_strcat(filename, end);
+
+    printf(1, "filename: %s\n", filename);
 
     // printf(1, "chegou aq\n");
     int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND);

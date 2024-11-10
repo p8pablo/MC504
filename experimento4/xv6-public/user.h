@@ -42,4 +42,5 @@ int atoi(const char*);
 int random();
 int randomrange(int lo, int hi);
 int cpu_bound_task();
-int io_bound_task();
+int io_bound_task(int i);
+void run_experiment(int cpu_count, int io_count);
