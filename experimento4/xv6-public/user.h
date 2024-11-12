@@ -1,6 +1,19 @@
 struct stat;
 struct rtcdate;
 
+#define MAX_ROUND_MEMORY_OVERHEAD 100 // Número máximo de medições de throughput por rodada
+
+struct mem_overhead {
+    int memory_access_time;   // Tempo total de acesso à memória
+    int memory_alloc_time;    // Tempo total de alocação de memória
+    int memory_free_time;     // Tempo total de desalocação de memória
+};
+
+// Array para armazenar o throughput temporário a cada segundo
+extern struct mem_overhead mem_overhead_temp[MAX_ROUND_MEMORY_OVERHEAD];
+extern int mem_overhead_count;
+
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -42,4 +55,5 @@ int atoi(const char*);
 int random();
 int randomrange(int lo, int hi);
 int cpu_bound_task();
-int io_bound_task();
+int io_bound_task(int i);
+void run_experiment(int cpu_count, int io_count);

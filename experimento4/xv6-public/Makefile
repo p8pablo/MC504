@@ -166,9 +166,12 @@ graph.o: graph.c user.h
 
 lines.o: lines.c user.h
 	$(CC) $(CFLAGS) -c lines.c
-	
-_run_experiment: run_experiment.o graph.o lines.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _run_experiment run_experiment.o graph.o lines.o $(ULIB)
+
+rodada.o: rodada.c user.h
+	$(CC) $(CFLAGS) -c rodada.c
+
+_run_experiment: run_experiment.o graph.o lines.o rodada.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _run_experiment run_experiment.o graph.o lines.o rodada.o $(ULIB)
 	$(OBJDUMP) -S _run_experiment > run_experiment.asm
 
 
@@ -268,7 +271,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c .c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	run_experiment.c grafo.c lines.c\
+	run_experiment.c grafo.c lines.c rodada.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
