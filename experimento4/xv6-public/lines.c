@@ -6,13 +6,14 @@
 #define LINE_LENGTH 101
 #define MAX_LINES 100
 #define RAND_MAX_32 ((1U << 30) - 1)
-#define O_CREAT 0x200
-#define O_APPEND 0x400
-#define O_EXCL 2048
 #define TOTAL_LINES 100
 #define SWAPS 50
 #define MAX_INT 2147483647
-#define O_TRUNC 0x400
+
+#define O_CREAT  0x200
+#define O_APPEND 0x400
+#define O_EXCL   0x800
+#define O_TRUNC  0x1000  
 
 
 char lines_file[TOTAL_LINES][LINE_LENGTH];
@@ -217,10 +218,22 @@ void permute_lines(char *filename)
         }
     }
 
-    // Lock adquirido, escreva o PID no lock file
-    fd_lock = open(lock_filename, O_WRONLY | O_CREAT | O_TRUNC);
-    write(fd_lock, pid_str, strlen_custom(pid_str));
-    close(fd_lock);
+    fd_lock = open(lock_filename, O_WRONLY | O_CREAT | O_EXCL);
+    if (fd_lock < 0) {
+        // Handle lock acquisition failure
+    } else {
+        // Successfully acquired the lock, write PID directly
+        if (write(fd_lock, pid_str, strlen_custom(pid_str)) < 0) {
+            printf(1, "Error: Failed to write PID to lock file.\n");
+            close(fd_lock);
+            unlink(lock_filename); // Remove the lock file since writing failed
+            exit();
+        }
+        printf(1, "Lock acquired successfully (PID %d).\n", pid);
+        close(fd_lock);
+        // Proceed with critical section
+}
+
 
     int fd_write = open(filename, O_WRONLY | O_CREAT);
     if (fd_write < 0)

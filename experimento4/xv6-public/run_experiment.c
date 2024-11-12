@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     int numero_rodadas = 3; // trocar para 30
     for (int rodada = 0; rodada < numero_rodadas; rodada++) {
         printf(1, "=============== RODADA %d ===============\n", rodada + 1);
-        run_experiment(10, 10);
+        run_experiment(11, 10);
     }
     exit();
 }

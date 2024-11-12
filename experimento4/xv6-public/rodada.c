@@ -147,7 +147,7 @@ void run_experiment(int cpu_count, int io_count)
         if(i < cpu_count){ // Ainda está no número de acessos da CPU
 
             if (pipe(fd_memory[i]) < 0) {
-                printf(1, "Criacao do %d Pipe falhou! (1)\n", i);
+                // printf(1, "Criacao do %d Pipe falhou! (1)\n", i);
                 free(fd_memory);
                 exit();
             }
@@ -159,11 +159,11 @@ void run_experiment(int cpu_count, int io_count)
                 int total_cpu_time = cpu_bound_task();
 
                 write(fd_memory[i][1], &total_cpu_time, sizeof(total_cpu_time));
-                printf(1, "valor real filho: %d\n", fd_memory[i][1]);
+                // printf(1, "valor real filho: %d\n", fd_memory[i][1]);
                 close(fd_memory[i][1]);
                 exit();
             }
-            printf(1, "valor real pai: %d\n", fd_memory[i][1]);
+            // printf(1, "valor real pai: %d\n", fd_memory[i][1]);
             close(fd_memory[i][1]);
 
             completed_count ++; // Para a vazão
@@ -174,7 +174,7 @@ void run_experiment(int cpu_count, int io_count)
         if(i < io_count){
 
             if (pipe(fd_files[i]) < 0) {
-                printf(1, "Criacao do %d Pipe falhou! (2)\n", i);
+                // printf(1, "Criacao do %d Pipe falhou! (2)\n", i);
                 free(fd_files);
                 exit();
             }
@@ -183,8 +183,8 @@ void run_experiment(int cpu_count, int io_count)
                 
                 close(fd_files[i][0]);
 
-                printf(1, "%d esimo io_bound\n", i);
-                int total_io_time = io_bound_task(i);
+                // printf(1, "%d esimo io_bound\n", i);
+                int total_io_time = io_bound_task(i % 10);
                 
                 write(fd_files[i][1], &total_io_time, sizeof(total_io_time));
                 close(fd_files[i][1]);
@@ -195,7 +195,7 @@ void run_experiment(int cpu_count, int io_count)
 
             // Read I/O time
             if (read(fd_files[i][0], &files_result, sizeof(files_result)) < 0) {
-                printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
+                // printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
                 exit();
             }
             close(fd_files[i][0]); // Close read end after reading
@@ -226,7 +226,7 @@ void run_experiment(int cpu_count, int io_count)
         sum_exec_times_squared += exec_time * exec_time;
 
         // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
-        printf(1, "files result: %d\n", files_result);
+        // printf(1, "files result: %d\n", files_result);
         int current_total_time = files_result;
         sum_file_time += current_total_time;
         if (current_total_time > max_file_time) max_file_time = current_total_time;
@@ -257,7 +257,7 @@ void run_experiment(int cpu_count, int io_count)
     printf(1, "max file time: %d, min: %d, sum: %d\n", max_file_time, min_file_time, sum_file_time);
     int final_efficience = calculate_throughput(max_file_time, min_file_time, sum_file_time, io_count);
     print_float(final_efficience);
-    printf(1, "\n");
+    // printf(1, "\n");
 
     free(fd_memory);
     free(fd_files);
