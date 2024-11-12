@@ -201,7 +201,7 @@ void run_experiment(int cpu_count, int io_count)
         }
 
         // VAZÃO
-        if (uptime() - start_time_throughput >= 20) {
+        if (uptime() - start_time_throughput >= 100) {
 
             iterations_throughput += 1;
 
