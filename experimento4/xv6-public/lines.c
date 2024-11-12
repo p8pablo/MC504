@@ -19,6 +19,43 @@ char lines_file[TOTAL_LINES][LINE_LENGTH];
 
 int total_file_time = 0;
 
+void my_itoa(int value, char *str) {
+    int i = 0;
+    int is_negative = 0;
+
+    if (value == 0) {
+        str[i++] = '0';
+        str[i] = '\0';
+        return;
+    }
+
+    if (value < 0) {
+        is_negative = 1;
+        value = -value;
+    }
+
+    // Process individual digits
+    while (value != 0) {
+        int rem = value % 10;
+        str[i++] = rem + '0';
+        value /= 10;
+    }
+
+    // If number is negative, append '-'
+    if (is_negative) {
+        str[i++] = '-';
+    }
+
+    str[i] = '\0';
+
+    // Reverse the string
+    for (int j = 0; j < i / 2; j++) {
+        char temp = str[j];
+        str[j] = str[i - j - 1];
+        str[i - j - 1] = temp;
+    }
+}
+
 // Função para gerar uma string aleatória
 void generate_random_string(char *str, int length)
 {
@@ -102,50 +139,81 @@ void permute_lines(char *filename)
     }
 
     char lock_filename[256];
-    strcpy_custom(lock_filename, filename, 0);
-    strcpy_custom(lock_filename, ".lock", strlen_custom(lock_filename));
-    char* my_itoa(int value, char *str);
+    
+    // Construct lock filename
+    int len = 0;
+    // Assuming strcpy_custom appends strings with offset
+    // Implemented here manually
+    for (; filename[len] != '\0' && len < 255; len++) {
+        lock_filename[len] = filename[len];
+    }
+    // Append ".lock"
+    char *lock_suffix = ".lock";
+    int suffix_len = 0;
+    while (lock_suffix[suffix_len] != '\0' && (len + suffix_len) < 255) {
+        lock_filename[len + suffix_len] = lock_suffix[suffix_len];
+        suffix_len++;
+    }
+    lock_filename[len + suffix_len] = '\0';
 
     int fd_lock;
-    int max_retries = 100;
     int retries = 0;
-    char pid_str[10];
+    char pid_str[12]; // Increased size to accommodate larger PIDs
 
-    // Obtenha o PID do processo atual
+    // Get current PID
     int pid = getpid();
     my_itoa(pid, pid_str);
+    printf(1, "lock filename: %s\n", lock_filename);
 
-    while ((fd_lock = open(lock_filename, O_WRONLY | O_CREAT | O_EXCL)) < 0)
-    {
-        // Tente ler o PID do lock file existente
+    while ((fd_lock = open(lock_filename, O_WRONLY | O_CREAT | O_EXCL)) < 0) {
+        // Lock file exists, attempt to read existing PID
         int fd_existing = open(lock_filename, O_RDONLY);
-        if (fd_existing >= 0)
-        {
-            char existing_pid_str[10] = {'\0'};
-            read(fd_existing, existing_pid_str, sizeof(existing_pid_str));
+        if (fd_existing >= 0) {
+            char existing_pid_str[12] = {'\0'};
+            int n = read(fd_existing, existing_pid_str, sizeof(existing_pid_str) - 1);
             close(fd_existing);
 
-            int existing_pid = atoi(existing_pid_str);
-            if (kill(existing_pid) < 0)
-            {
-                // O processo que criou o lock não existe mais, então removemos o lock file
-                if (unlink(lock_filename) == 0)
-                {
-                    printf(1, "Stale lock removed successfully (PID %d).\n", existing_pid);
+            if (n > 0) {
+                int existing_pid = atoi(existing_pid_str);
+                if (existing_pid <= 0) {
+                    // Invalid PID, assume stale lock
+                    if (unlink(lock_filename) == 0) {
+                        printf(1, "Stale lock removed (invalid PID: %d).\n", existing_pid);
+                    } else {
+                        printf(1, "Failed to remove stale lock. Retrying...\n");
+                    }
+                } else {
+                    // Check if process with existing_pid is alive
+                    if (kill(existing_pid) < 0) {
+                        // Process doesn't exist, remove stale lock
+                        if (unlink(lock_filename) == 0) {
+                            printf(1, "Stale lock removed successfully (PID %d).\n", existing_pid);
+                        } else {
+                            printf(1, "Failed to remove stale lock. Retrying...\n");
+                        }
+                    } else {
+                        // Process is still running, wait and retry
+                        printf(1, "Lock held by PID %d. Retrying...\n", existing_pid);
+                    }
                 }
-                else
-                {
+            } else {
+                // Unable to read PID, assume stale lock
+                if (unlink(lock_filename) == 0) {
+                    printf(1, "Stale lock removed (unable to read PID).\n");
+                } else {
                     printf(1, "Failed to remove stale lock. Retrying...\n");
                 }
             }
+        } else {
+            // Unable to open existing lock file, possibly a race condition, retry
+            printf(1, "Failed to open existing lock file. Retrying...\n");
         }
 
         sleep(2);
         retries++;
-        if (retries >= max_retries)
-        {
-            printf(1, "Error: Timeout while waiting for the lock. Retrying after removing stale lock.\n");
-            retries = 0; // Reset retries para continuar tentando
+        if (retries >= 100) {
+            printf(1, "Error: Timeout while waiting for the lock.\n");
+            exit();
         }
     }
 
@@ -177,29 +245,6 @@ void permute_lines(char *filename)
     close(fd_lock);
     close(fd_write);
     close(fd);
-}
-
-// Função itoa simplificada
-char *my_itoa(int value, char *str)
-{
-    if (value < 0 || value > 30)
-    {
-        str[0] = '0';
-        str[1] = '\0';
-        return str;
-    }
-    if (value < 10)
-    {
-        str[0] = '0' + value;
-        str[1] = '\0';
-    }
-    else
-    {
-        str[0] = '0' + (value / 10);
-        str[1] = '0' + (value % 10);
-        str[2] = '\0';
-    }
-    return str;
 }
 
 // Função para concatenar strings
@@ -250,5 +295,6 @@ int io_bound_task(int rodada)
     unlink(filename);
     total_file_time += uptime() - start;
 
+    printf(1, "total time: %d\n", total_file_time);
     return total_file_time;
 }

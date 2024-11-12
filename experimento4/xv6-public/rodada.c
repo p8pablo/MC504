@@ -7,6 +7,8 @@
 #define MAX_INT 2147483647
 #define MAX_ITERATIONS 30
 int rodada = 0;
+int files_result;
+
 
 // VAZÃO
 int completed_count = 0;
@@ -157,9 +159,11 @@ void run_experiment(int cpu_count, int io_count)
                 int total_cpu_time = cpu_bound_task();
 
                 write(fd_memory[i][1], &total_cpu_time, sizeof(total_cpu_time));
+                printf(1, "valor real filho: %d\n", fd_memory[i][1]);
                 close(fd_memory[i][1]);
                 exit();
             }
+            printf(1, "valor real pai: %d\n", fd_memory[i][1]);
             close(fd_memory[i][1]);
 
             completed_count ++; // Para a vazão
@@ -190,7 +194,6 @@ void run_experiment(int cpu_count, int io_count)
             close(fd_files[i][1]);
 
             // Read I/O time
-            int files_result;
             if (read(fd_files[i][0], &files_result, sizeof(files_result)) < 0) {
                 printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
                 exit();
@@ -223,6 +226,7 @@ void run_experiment(int cpu_count, int io_count)
         sum_exec_times_squared += exec_time * exec_time;
 
         // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
+        printf(1, "files result: %d\n", files_result);
         int current_total_time = files_result;
         sum_file_time += current_total_time;
         if (current_total_time > max_file_time) max_file_time = current_total_time;
@@ -250,6 +254,7 @@ void run_experiment(int cpu_count, int io_count)
 
     // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
     printf(1, "EFICIENCIA DO SISTEMA DE ARQUIVOS: ");
+    printf(1, "max file time: %d, min: %d, sum: %d\n", max_file_time, min_file_time, sum_file_time);
     int final_efficience = calculate_throughput(max_file_time, min_file_time, sum_file_time, io_count);
     print_float(final_efficience);
     printf(1, "\n");
