@@ -28,8 +28,7 @@ int max_file_time = 0;
 int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
 int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (∑x_i^2)
 
-// // Flags to help calculate file accessment time
-// int sum_file_calc = 0;
+
 void print_float(int x){
     // Integer and fractional parts for display
     int norm_factor = 1000;
@@ -39,56 +38,6 @@ void print_float(int x){
     // Print results without formatted padding
     printf(1, "%d.%d\n", integer_part, fractional_part);
 }
-
-// // Função para calcular o overhead de gerenciamento de memória
-// int calculate_memory_overhead(int t_access, int t_alloc, int t_free) {
-//     return t_access + t_alloc + t_free;
-// }
-
-// // Função para calcular o overhead normalizado
-// int calculate_normalized_overhead(int m_over, int m_over_min, int m_over_max) {
-//     int norm_factor = 1000;
-//     if (m_over_max != m_over_min) {
-//         return norm_factor - ((m_over - m_over_min) * norm_factor) / (m_over_max - m_over_min);
-//     } else {
-//         return 1; // evita divisão por zero
-//     }
-// }
-
-// // Função para alocação de memória
-// int allocate_memory(int size) {
-//     // Aloca 'size' bytes de memória
-//     char *ptr = sbrk(size);
-//     if (ptr == (char*) -1) {
-//         // Falha na alocação
-//         return -1;
-//     }
-//     return 0; // Sucesso
-// }
-
-// // Função para a desalocação de memória
-// int deallocate_memory(int size) {
-//     // Desaloca 'size' bytes de memória
-//     char *ptr = sbrk(-size);
-//     if (ptr == (char*) -1) {
-//         // Falha na desalocação
-//         return -1;
-//     }
-//     return 0; // Sucesso
-// }
-
-// // Função principal de calculo de overhead de memória
-// int measure_memory_overhead(int m_over) {
-    
-//     // Atualiza valores de m_over_min e m_over_max
-//     if (m_over < m_over_min) m_over_min = m_over;
-//     if (m_over > m_over_max) m_over_max = m_over;
-
-//     // Calcula o overhead normalizado
-//     int m_over_norm = calculate_normalized_overhead(m_over, m_over_min, m_over_max);
-
-//     return m_over_norm;
-// }
 
 int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_count) {
     if (process_count == 0) return 0; // Evitar divisão por zero
@@ -105,6 +54,7 @@ int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_
 
 int calculate_throughput(int max_throughput, int min_throughput, int sum_throughput, int num_execs){
 
+    // printf(1, "max: %d, min: %d, sum: %d\n", max_throughput, min_throughput, sum_throughput);
     int current_throughput = sum_throughput / num_execs;   // Esperança da vazão
     int normalized_throughput = 1;
     int norm_factor = 1000;
@@ -129,7 +79,6 @@ void run_experiment(int cpu_count, int io_count)
     // JUSTIÇA ENTRE PROCESSOS
     int start_time_justica = uptime();
 
-
     // SALVAR RESULTADO DA EFICIÊNCIA
     int files_result = 0;
 
@@ -144,7 +93,7 @@ void run_experiment(int cpu_count, int io_count)
         if(i < cpu_count){ // Ainda está no número de acessos da CPU
 
             if (pipe(fd_memory[i]) < 0) {
-                // printf(1, "Criacao do %d Pipe falhou! (1)\n", i);
+                printf(1, "Criacao do %d Pipe falhou! (1)\n", i);
                 free(fd_memory);
                 exit();
             }
@@ -156,16 +105,14 @@ void run_experiment(int cpu_count, int io_count)
                 int total_cpu_time = cpu_bound_task();
 
                 write(fd_memory[i][1], &total_cpu_time, sizeof(total_cpu_time));
-                // printf(1, "valor real filho: %d\n", fd_memory[i][1]);
                 close(fd_memory[i][1]);
                 exit();
             }
-            // printf(1, "valor real pai: %d\n", fd_memory[i][1]);
             close(fd_memory[i][1]);
 
             // Read I/O time
             if (read(fd_memory[i][0], &memory_result, sizeof(memory_result)) < 0) {
-                // printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
+                printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
                 exit();
             }
             close(fd_memory[i][0]); // Close read end after reading
@@ -178,7 +125,7 @@ void run_experiment(int cpu_count, int io_count)
         if(i < io_count){
 
             if (pipe(fd_files[i]) < 0) {
-                // printf(1, "Criacao do %d Pipe falhou! (2)\n", i);
+                printf(1, "Criacao do %d Pipe falhou! (2)\n", i);
                 free(fd_files);
                 exit();
             }
@@ -187,7 +134,6 @@ void run_experiment(int cpu_count, int io_count)
                 
                 close(fd_files[i][0]);
 
-                // printf(1, "%d esimo io_bound\n", i);
                 int total_io_time = io_bound_task(i % 10);
                 
                 write(fd_files[i][1], &total_io_time, sizeof(total_io_time));
@@ -199,7 +145,7 @@ void run_experiment(int cpu_count, int io_count)
 
             // Read I/O time
             if (read(fd_files[i][0], &files_result, sizeof(files_result)) < 0) {
-                // printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
+                printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
                 exit();
             }
             close(fd_files[i][0]); // Close read end after reading
@@ -259,12 +205,26 @@ void run_experiment(int cpu_count, int io_count)
     // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
     printf(1, "EFICIENCIA DO SISTEMA DE ARQUIVOS: ");
     print_float(1000 / sum_file_time);
+    printf(1, "\n");
 
     // MEMORY OVERHEAD
     printf(1, "MEMORY OVERHEAD: ");
     print_float(1000 / sum_m_over);
     printf(1, "\n");
+    
+    // DESEMPENHO TOTAL DO SISTEMA
+    printf(1, "DESEMPENHO GERAL DO SISTEMA: ");
+    int total_ans = (final_throughput * 250)/1000 + (final_justice * 250)/1000 + (250/sum_file_time) + (250/sum_m_over);
+    print_float(total_ans);
+    printf(1, "\n");
 
+    
+    // REINICIANDO VARIÁVEIS DA SOMA
+    sum_throughput = 0;
+    sum_m_over = 0;
+    sum_file_time = 0;
+    sum_exec_times = 0;
+    sum_exec_times_squared = 0;
 
     free(fd_memory);
     free(fd_files);
