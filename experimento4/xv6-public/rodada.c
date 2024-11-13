@@ -8,7 +8,7 @@
 #define MAX_ITERATIONS 30
 int rodada = 0;
 int files_result;
-
+int memory_result;
 
 // VAZÃO
 int completed_count = 0;
@@ -16,16 +16,13 @@ int max_throughput = 0;
 int min_throughput = MAX_INT;
 int sum_throughput = 0;
 
-// // Flags to help calculate memory overhead
-// int m_over_min = INF;
-// int m_over_max = 0;
-// int sum_m_over = 0;
+// MEMORY OVERHEAD
+int sum_m_over = 0;
 
 // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
 int sum_file_time = 0;
 int min_file_time = MAX_INT;
 int max_file_time = 0;
-
 
 // JUSTIÇA ENTRE PROCESSOS
 int sum_exec_times = 0;      // Soma dos tempos de execução (∑x_i)
@@ -166,6 +163,13 @@ void run_experiment(int cpu_count, int io_count)
             // printf(1, "valor real pai: %d\n", fd_memory[i][1]);
             close(fd_memory[i][1]);
 
+            // Read I/O time
+            if (read(fd_memory[i][0], &memory_result, sizeof(memory_result)) < 0) {
+                // printf(1, "Leitura do %d Pipe de Arquivos falhou\n", i);
+                exit();
+            }
+            close(fd_memory[i][0]); // Close read end after reading
+
             completed_count ++; // Para a vazão
 
         }
@@ -226,11 +230,11 @@ void run_experiment(int cpu_count, int io_count)
         sum_exec_times_squared += exec_time * exec_time;
 
         // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
-        // printf(1, "files result: %d\n", files_result);
         int current_total_time = files_result;
         sum_file_time += current_total_time;
-        if (current_total_time > max_file_time) max_file_time = current_total_time;
-        if (current_total_time < min_file_time) min_file_time = current_total_time;
+
+        // MEMORY OVERHEAD
+        sum_m_over += memory_result;
 
     }
 
@@ -254,10 +258,13 @@ void run_experiment(int cpu_count, int io_count)
 
     // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
     printf(1, "EFICIENCIA DO SISTEMA DE ARQUIVOS: ");
-    printf(1, "max file time: %d, min: %d, sum: %d\n", max_file_time, min_file_time, sum_file_time);
-    int final_efficience = calculate_throughput(max_file_time, min_file_time, sum_file_time, io_count);
-    print_float(final_efficience);
-    // printf(1, "\n");
+    print_float(1000 / sum_file_time);
+
+    // MEMORY OVERHEAD
+    printf(1, "MEMORY OVERHEAD: ");
+    print_float(1000 / sum_m_over);
+    printf(1, "\n");
+
 
     free(fd_memory);
     free(fd_files);

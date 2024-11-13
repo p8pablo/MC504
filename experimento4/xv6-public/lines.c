@@ -79,7 +79,7 @@ void write_random_line_to_file(char *filename, int fd)
     int start = uptime();
     if (write(fd, line, LINE_LENGTH) != LINE_LENGTH)
     {
-        printf(1, "Could not write on file.\n");
+        // printf(1, "Could not write on file.\n");
         return;
     }
 
@@ -115,7 +115,7 @@ void permute_lines(char *filename)
     int fd = open(filename, O_RDWR | O_CREAT);
     if (fd < 0)
     {
-        printf(1, "Could not open file for permutation\n");
+        // printf(1, "Could not open file for permutation\n");
         return;
     }
 
@@ -164,7 +164,7 @@ void permute_lines(char *filename)
     // Get current PID
     int pid = getpid();
     my_itoa(pid, pid_str);
-    printf(1, "lock filename: %s\n", lock_filename);
+    // printf(1, "lock filename: %s\n", lock_filename);
 
     while ((fd_lock = open(lock_filename, O_WRONLY | O_CREAT | O_EXCL)) < 0) {
         // Lock file exists, attempt to read existing PID
@@ -179,35 +179,35 @@ void permute_lines(char *filename)
                 if (existing_pid <= 0) {
                     // Invalid PID, assume stale lock
                     if (unlink(lock_filename) == 0) {
-                        printf(1, "Stale lock removed (invalid PID: %d).\n", existing_pid);
+                        // printf(1, "Stale lock removed (invalid PID: %d).\n", existing_pid);
                     } else {
-                        printf(1, "Failed to remove stale lock. Retrying...\n");
+                        // printf(1, "Failed to remove stale lock. Retrying...\n");
                     }
                 } else {
                     // Check if process with existing_pid is alive
                     if (kill(existing_pid) < 0) {
                         // Process doesn't exist, remove stale lock
                         if (unlink(lock_filename) == 0) {
-                            printf(1, "Stale lock removed successfully (PID %d).\n", existing_pid);
+                            // printf(1, "Stale lock removed successfully (PID %d).\n", existing_pid);
                         } else {
-                            printf(1, "Failed to remove stale lock. Retrying...\n");
+                            // printf(1, "Failed to remove stale lock. Retrying...\n");
                         }
                     } else {
                         // Process is still running, wait and retry
-                        printf(1, "Lock held by PID %d. Retrying...\n", existing_pid);
+                        // printf(1, "Lock held by PID %d. Retrying...\n", existing_pid);
                     }
                 }
             } else {
                 // Unable to read PID, assume stale lock
                 if (unlink(lock_filename) == 0) {
-                    printf(1, "Stale lock removed (unable to read PID).\n");
+                    // printf(1, "Stale lock removed (unable to read PID).\n");
                 } else {
-                    printf(1, "Failed to remove stale lock. Retrying...\n");
+                    // printf(1, "Failed to remove stale lock. Retrying...\n");
                 }
             }
         } else {
             // Unable to open existing lock file, possibly a race condition, retry
-            printf(1, "Failed to open existing lock file. Retrying...\n");
+            // printf(1, "Failed to open existing lock file. Retrying...\n");
         }
 
         sleep(2);
@@ -224,12 +224,12 @@ void permute_lines(char *filename)
     } else {
         // Successfully acquired the lock, write PID directly
         if (write(fd_lock, pid_str, strlen_custom(pid_str)) < 0) {
-            printf(1, "Error: Failed to write PID to lock file.\n");
+            // printf(1, "Error: Failed to write PID to lock file.\n");
             close(fd_lock);
             unlink(lock_filename); // Remove the lock file since writing failed
             exit();
         }
-        printf(1, "Lock acquired successfully (PID %d).\n", pid);
+        // printf(1, "Lock acquired successfully (PID %d).\n", pid);
         close(fd_lock);
         // Proceed with critical section
 }
@@ -238,7 +238,7 @@ void permute_lines(char *filename)
     int fd_write = open(filename, O_WRONLY | O_CREAT);
     if (fd_write < 0)
     {
-        printf(1, "Error: Cannot open file for writing\n");
+        // printf(1, "Error: Cannot open file for writing\n");
         close(fd_lock);
         unlink(lock_filename);
         return;
@@ -248,7 +248,7 @@ void permute_lines(char *filename)
     {
         if (write(fd_write, lines_file[i], LINE_LENGTH) != LINE_LENGTH)
         {
-            printf(1, "Error: Failed to write line %d\n", i + 1);
+            // printf(1, "Error: Failed to write line %d\n", i + 1);
             close(fd_write);
             return;
         }
@@ -292,7 +292,7 @@ int io_bound_task(int rodada)
     int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND);
     if (fd < 0)
     {
-        printf(1, "Could not open file\n");
+        // printf(1, "Could not open file\n");
         return -1;
     }
 
@@ -308,6 +308,6 @@ int io_bound_task(int rodada)
     unlink(filename);
     total_file_time += uptime() - start;
 
-    printf(1, "total time: %d\n", total_file_time);
+    // printf(1, "total time: %d\n", total_file_time);
     return total_file_time;
 }
