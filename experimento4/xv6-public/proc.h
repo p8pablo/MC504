@@ -59,9 +59,10 @@ struct proc
   int killed;                 // If non-zero, have been killed
   struct file *ofile[NOFILE]; // Open files
   struct inode *cwd;          // Current directory
-  char name[16];
-  int weight;           // Peso do processo (para WRR)
-  int remaining_weight; // Peso restante para controle do WRR               // Process name (debugging)
+  char name[16];              // Process name (debugging)
+  int priority;               // Nível da fila (0, 1, ou 2)
+  int ticks;                  // Contador de ticks utilizados no quantum
+  int queue_level;            // Nível atual da fila
 };
 
 // Process memory is laid out contiguously, low addresses first:

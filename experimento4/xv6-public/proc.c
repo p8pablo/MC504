@@ -140,12 +140,13 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->weight = 1;                   // Peso inicial (pode ser ajustado conforme necessário)
-  p->remaining_weight = p->weight; // Inicializa o peso restante
+  p->priority = 0;    // Começa na fila de maior prioridade (0)
+  p->ticks = 0;       // Inicializa o contador de ticks
+  p->queue_level = 0; // Começa na fila 0
 
   release(&ptable.lock);
 
-  // Alocar pilha do kernel
+  // Alocar a pilha do kernel
   if ((p->kstack = kalloc()) == 0)
   {
     p->state = UNUSED;
@@ -153,7 +154,6 @@ found:
   }
   sp = p->kstack + KSTACKSIZE;
 
-  // Configuração do contexto
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe *)sp;
 
@@ -418,48 +418,58 @@ int wait(void)
 //   }
 // }
 
-void
-scheduler(void)
+void scheduler(void)
 {
-    struct proc *p;
-    struct cpu *c = mycpu();
-    c->proc = 0;
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  int quantum[] = {2, 4, 8}; // Quantum para cada nível de fila
 
-    for (;;) {
-        // Habilita interrupções neste processador
-        sti();
+  for (;;)
+  {
+    sti();
 
-        acquire(&ptable.lock);
+    acquire(&ptable.lock);
 
-        // Percorrer a tabela de processos
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if (p->state != RUNNABLE)
-                continue;
+    // Percorrer os processos por nível de fila (0, 1, 2)
+    for (int level = 0; level < 3; level++)
+    {
+      for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+      {
+        if (p->state != RUNNABLE || p->queue_level != level)
+          continue;
 
-            // Verificar se o peso restante é maior que zero
-            if (p->remaining_weight <= 0) {
-                // Reiniciar o peso restante com o peso original
-                p->remaining_weight = p->weight;
-                continue;
-            }
+        // Alternar para o processo
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
 
-            // Reduzir o peso restante do processo
-            p->remaining_weight--;
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
 
-            // Alternar para o processo selecionado
-            c->proc = p;
-            switchuvm(p);
-            p->state = RUNNING;
+        // Processo terminou temporariamente
+        c->proc = 0;
 
-            swtch(&(c->scheduler), p->context);
-            switchkvm();
+        // Incrementar o contador de ticks
+        p->ticks++;
 
-            // Processo terminou de executar temporariamente
-            c->proc = 0;
+        // Verificar se o processo usou todo o quantum
+        if (p->ticks >= quantum[level])
+        {
+          p->ticks = 0;
+          if (level < 2)
+          {
+            p->queue_level++; // Rebaixar o processo para a próxima fila
+          }
         }
 
-        release(&ptable.lock);
+        // Reenfileirar o processo na mesma fila
+        p->queue_level = level;
+      }
     }
+
+    release(&ptable.lock);
+  }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
