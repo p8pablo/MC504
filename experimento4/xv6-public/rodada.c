@@ -30,12 +30,11 @@ int sum_exec_times_squared = 0; // Soma dos quadrados dos tempos de execução (
 
 
 void print_float(int x){
-    // Integer and fractional parts for display
+    // Função para printar um float, recebendo-o como o valor original multiplicado por 1000
     int norm_factor = 1000;
     int integer_part = x / norm_factor;
     int fractional_part = x % norm_factor;
 
-    // Print results without formatted padding
     printf(1, "%d.%d\n", integer_part, fractional_part);
 }
 
@@ -191,25 +190,25 @@ void run_experiment(int cpu_count, int io_count)
     }
 
     // VAZAO
-    printf(1, "VAZAO: ");
+    printf(1, "Vazao: ");
     int final_throughput = calculate_throughput(max_throughput, min_throughput, sum_throughput, iterations_throughput);
     print_float(final_throughput);
     printf(1, "\n");
     
     // JUSTIÇA ENTRE PROCESSOS
-    printf(1, "JUSTICA ENTRE PROCESSOS: ");
+    printf(1, "Justica entre processos: ");
     int final_justice = calculate_j_cpu(sum_exec_times, sum_exec_times_squared, cpu_count + io_count);
     print_float(final_justice);
     printf(1, "\n");
 
     // EFICIÊNCIA DO SISTEMA DE ARQUIVOS
-    printf(1, "EFICIENCIA DO SISTEMA DE ARQUIVOS: ");
-    print_float(1000 / sum_file_time);
+    printf(1, "Eficiencia do sistema de arquivos: ");
+    print_float(io_count * 1000 / sum_file_time);
     printf(1, "\n");
 
     // MEMORY OVERHEAD
-    printf(1, "MEMORY OVERHEAD: ");
-    print_float(1000 / sum_m_over);
+    printf(1, "Memory overhead: ");
+    print_float(cpu_count * 1000 / sum_m_over);
     printf(1, "\n");
     
     // DESEMPENHO TOTAL DO SISTEMA
@@ -218,7 +217,7 @@ void run_experiment(int cpu_count, int io_count)
     print_float(total_ans);
     printf(1, "\n");
 
-    
+
     // REINICIANDO VARIÁVEIS DA SOMA
     sum_throughput = 0;
     sum_m_over = 0;
