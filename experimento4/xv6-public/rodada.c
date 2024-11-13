@@ -35,7 +35,11 @@ void print_float(int x){
     int integer_part = x / norm_factor;
     int fractional_part = x % norm_factor;
 
-    printf(1, "%d.%d\n", integer_part, fractional_part);
+    if (x < 100){
+        printf(1, "%d.0%d\n", integer_part, fractional_part);
+    }else{
+        printf(1, "%d.%d\n", integer_part, fractional_part);
+    }
 }
 
 int calculate_j_cpu(int sum_exec_times, int sum_exec_times_squared, int process_count) {
@@ -213,7 +217,7 @@ void run_experiment(int cpu_count, int io_count)
     
     // DESEMPENHO TOTAL DO SISTEMA
     printf(1, "DESEMPENHO GERAL DO SISTEMA: ");
-    int total_ans = (final_throughput * 250)/1000 + (final_justice * 250)/1000 + (250/sum_file_time) + (250/sum_m_over);
+    int total_ans = (final_throughput * 250)/1000 + (final_justice * 250)/1000 + (250 * io_count/sum_file_time) + (250 * cpu_count/sum_m_over);
     print_float(total_ans);
     printf(1, "\n");
 
