@@ -10,6 +10,8 @@ int rodada = 0;
 int files_result;
 int memory_result;
 
+int desempenho_geral[MAX_ITERATIONS];
+
 // VAZÃO
 int completed_count = 0;
 int max_throughput = 0;
@@ -221,6 +223,14 @@ void run_experiment(int cpu_count, int io_count)
     print_float(total_ans);
     printf(1, "\n");
 
+    desempenho_geral[rodada++] = total_ans;
+
+    printf(1, "Desempenho geral medio: ");
+    int soma = 0;
+    for (int i = 0; i < rodada; i++){
+        soma += desempenho_geral[i];
+    }
+    print_float(soma/ rodada);
 
     // REINICIANDO VARIÁVEIS DA SOMA
     sum_throughput = 0;
@@ -229,6 +239,7 @@ void run_experiment(int cpu_count, int io_count)
     sum_exec_times = 0;
     sum_exec_times_squared = 0;
 
+    // LIBERANDO MEMORIA ALOCADA PARA PIPES
     free(fd_memory);
     free(fd_files);
 

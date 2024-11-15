@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
         printf(1, "=============== RODADA %d ===============\n", rodada + 1);
         run_experiment(15, 15);
     }
+    
     exit();
 }
 
