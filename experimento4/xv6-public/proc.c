@@ -423,7 +423,7 @@ void scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  int quantum[] = {2, 4, 8}; // Quantum para cada nível de fila
+  int quantum[] = {1, 8, 16}; // Quantum para cada nível de fila
 
   for (;;)
   {
