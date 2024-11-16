@@ -21,6 +21,14 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+unsigned int random_seed = 0;
+
+int rand(void)
+{
+  random_seed = random_seed * 1103515245 + 12345;
+  return (random_seed / 65536) % 32768; // Gera um número aleatório entre 0 e 32767
+}
+
 void pinit(void)
 {
   initlock(&ptable.lock, "ptable");
@@ -75,7 +83,7 @@ myproc(void)
 
 // ========= AllocProc sem inicialização de pesos =========
 
-// static struct proc*
+// static struct proc *
 // allocproc(void)
 // {
 //   struct proc *p;
@@ -83,10 +91,10 @@ myproc(void)
 
 //   acquire(&ptable.lock);
 
-//   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-//     if(p->state == UNUSED)
+//   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+//     if (p->state == UNUSED)
 //       goto found;
-
+//   p->tickets = 10; // Atribuindo 10 bilhetes ao processo
 //   release(&ptable.lock);
 //   return 0;
 
@@ -97,7 +105,8 @@ myproc(void)
 //   release(&ptable.lock);
 
 //   // Allocate kernel stack.
-//   if((p->kstack = kalloc()) == 0){
+//   if ((p->kstack = kalloc()) == 0)
+//   {
 //     p->state = UNUSED;
 //     return 0;
 //   }
@@ -105,15 +114,15 @@ myproc(void)
 
 //   // Leave room for trap frame.
 //   sp -= sizeof *p->tf;
-//   p->tf = (struct trapframe*)sp;
+//   p->tf = (struct trapframe *)sp;
 
 //   // Set up new context to start executing at forkret,
 //   // which returns to trapret.
 //   sp -= 4;
-//   *(uint*)sp = (uint)trapret;
+//   *(uint *)sp = (uint)trapret;
 
 //   sp -= sizeof *p->context;
-//   p->context = (struct context*)sp;
+//   p->context = (struct context *)sp;
 //   memset(p->context, 0, sizeof *p->context);
 //   p->context->eip = (uint)forkret;
 
@@ -143,6 +152,7 @@ found:
   p->priority = 0;    // Começa na fila de maior prioridade (0)
   p->ticks = 0;       // Inicializa o contador de ticks
   p->queue_level = 0; // Começa na fila 0
+  p->tickets = 10;    // Atribuindo 10 bilhetes ao processo
 
   release(&ptable.lock);
 
@@ -183,6 +193,7 @@ void userinit(void)
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
+
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
@@ -381,8 +392,100 @@ int wait(void)
 //   - eventually that process transfers control
 //       via swtch back to the scheduler.
 
-// ============= SCHEDULER ANTIGO =============
-// void scheduler(void)
+// ============= SCHEDULER NO OP =============
+void scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  for (;;)
+  {
+    // Enable interrupts on this processor.
+    sti();
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->state != RUNNABLE)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&ptable.lock);
+  }
+}
+
+// ============= SCHEDULER MLFQ =============
+// void scheduler /*MLFQ*/ (void)
+// {
+//   struct proc *p;
+//   struct cpu *c = mycpu();
+//   c->proc = 0;
+//   int quantum[] = {2, 4, 8}; // Quantum para cada nível de fila
+
+//   for (;;)
+//   {
+//     sti();
+
+//     acquire(&ptable.lock);
+
+//     // Percorrer os processos por nível de fila (0, 1, 2)
+//     for (int level = 0; level < 3; level++)
+//     {
+//       for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+//       {
+//         if (p->state != RUNNABLE || p->queue_level != level)
+//           continue;
+
+//         // Alternar para o processo
+//         c->proc = p;
+//         switchuvm(p);
+//         p->state = RUNNING;
+
+//         swtch(&(c->scheduler), p->context);
+//         switchkvm();
+
+//         // Processo terminou temporariamente
+//         c->proc = 0;
+
+//         // Incrementar o contador de ticks
+//         p->ticks++;
+
+//         // Verificar se o processo usou todo o quantum
+//         if (p->ticks >= quantum[level])
+//         {
+//           p->ticks = 0;
+//           if (level < 2)
+//           {
+//             p->queue_level++; // Rebaixar o processo para a próxima fila
+//           }
+//         }
+
+//         // Reenfileirar o processo na mesma fila
+//         p->queue_level = level;
+//       }
+//     }
+
+//     release(&ptable.lock);
+//   }
+// }
+
+// ============= SCHEDULER WRR =============
+// void scheduler/*WRR*/(void)
 // {
 //   struct proc *p;
 //   struct cpu *c = mycpu();
@@ -390,87 +493,112 @@ int wait(void)
 
 //   for (;;)
 //   {
-//     // Enable interrupts on this processor.
+//     // Habilita interrupções neste processador.
 //     sti();
 
-//     // Loop over process table looking for process to run.
+//     // Loop sobre a tabela de processos.
 //     acquire(&ptable.lock);
+
 //     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 //     {
 //       if (p->state != RUNNABLE)
 //         continue;
 
-//       // Switch to chosen process.  It is the process's job
-//       // to release ptable.lock and then reacquire it
-//       // before jumping back to us.
+//       // Calcula o quantum baseado no peso
+//       p->time_slice = p->weight;
+
+//       // Configura o processo para execução
 //       c->proc = p;
 //       switchuvm(p);
 //       p->state = RUNNING;
 
+//       // Não libera o lock aqui. O processo será responsável por liberar e readquirir o lock conforme necessário.
+
+//       // Faz o contexto do processo
 //       swtch(&(c->scheduler), p->context);
 //       switchkvm();
 
-//       // Process is done running for now.
-//       // It should have changed its p->state before coming back.
+//       // O processo terminou de rodar por agora
 //       c->proc = 0;
+
+//       // Não readquire o lock aqui, pois já está mantido
 //     }
+
 //     release(&ptable.lock);
 //   }
 // }
 
-void scheduler(void)
-{
-  struct proc *p;
-  struct cpu *c = mycpu();
-  c->proc = 0;
-  int quantum[] = {1, 8, 16}; // Quantum para cada nível de fila
+// ============= SCHEDULER LOTTERY =============
+// void scheduler(void)
+// {
+//   struct proc *p;
+//   struct cpu *c = mycpu();
+//   c->proc = 0;
+//   int total_tickets = 0;
 
-  for (;;)
-  {
-    sti();
+//   for (;;)
+//   {
+//     // Habilita interrupções no processador
+//     sti();
 
-    acquire(&ptable.lock);
+//     // Loop sobre a tabela de processos
+//     acquire(&ptable.lock);
 
-    // Percorrer os processos por nível de fila (0, 1, 2)
-    for (int level = 0; level < 3; level++)
-    {
-      for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-      {
-        if (p->state != RUNNABLE || p->queue_level != level)
-          continue;
+//     // Calcular o total de bilhetes (tickets)
+//     total_tickets = 0;
+//     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+//     {
+//       if (p->state == RUNNABLE)
+//       {
+//         total_tickets += p->tickets;
+//       }
+//     }
 
-        // Alternar para o processo
-        c->proc = p;
-        switchuvm(p);
-        p->state = RUNNING;
+//     // Se não houver processos prontos para rodar, continue
+//     if (total_tickets == 0)
+//     {
+//       release(&ptable.lock);
+//       continue;
+//     }
 
-        swtch(&(c->scheduler), p->context);
-        switchkvm();
+//     // Sorteio de um número aleatório entre 1 e total_tickets
+//     int winning_ticket = rand() % total_tickets + 1;
+//     int current_ticket = 0;
+//     struct proc *selected_process = 0;
 
-        // Processo terminou temporariamente
-        c->proc = 0;
+//     // Encontrar o processo cujo intervalo de tickets cobre o ticket sorteado
+//     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+//     {
+//       if (p->state == RUNNABLE)
+//       {
+//         current_ticket += p->tickets;
+//         if (current_ticket >= winning_ticket)
+//         {
+//           selected_process = p;
+//           break;
+//         }
+//       }
+//     }
 
-        // Incrementar o contador de ticks
-        p->ticks++;
+//     // Se encontramos um processo, execute-o
+//     if (selected_process)
+//     {
+//       // Configura o processo para execução
+//       c->proc = selected_process;
+//       switchuvm(selected_process);
+//       selected_process->state = RUNNING;
 
-        // Verificar se o processo usou todo o quantum
-        if (p->ticks >= quantum[level])
-        {
-          p->ticks = 0;
-          if (level < 2)
-          {
-            p->queue_level++; // Rebaixar o processo para a próxima fila
-          }
-        }
+//       // Executa o processo
+//       swtch(&(c->scheduler), selected_process->context);
+//       switchkvm();
 
-        // Reenfileirar o processo na mesma fila
-        p->queue_level = level;
-      }
-    }
+//       // O processo terminou de rodar, então desmarque o processo
+//       c->proc = 0;
+//     }
 
-    release(&ptable.lock);
-  }
-}
+//     release(&ptable.lock);
+//   }
+// }
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores

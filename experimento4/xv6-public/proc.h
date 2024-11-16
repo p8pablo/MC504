@@ -63,6 +63,9 @@ struct proc
   int priority;               // Nível da fila (0, 1, ou 2)
   int ticks;                  // Contador de ticks utilizados no quantum
   int queue_level;            // Nível atual da fila
+  int weight;                 // Peso do processo
+  int time_slice;             // Quantum atual baseado no peso
+  int tickets;                // Número de bilhetes do processo
 };
 
 // Process memory is laid out contiguously, low addresses first:
